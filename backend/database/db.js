@@ -8,23 +8,6 @@ const isPg = Boolean(DATABASE_URL);
 
 let db;
 
-if (isPg) {
-    const { createPgAdapter } = require('./pg-adapter');
-    db = createPgAdapter(DATABASE_URL);
-    console.log('Connected to PostgreSQL database');
-    initTables();
-} else {
-    const sqlite3 = require('sqlite3').verbose();
-    db = new sqlite3.Database(path.join(__dirname, 'foodcost.db'), (err) => {
-        if (err) {
-            console.error('Error opening database', err);
-        } else {
-            console.log('Connected to SQLite database');
-            initTables();
-        }
-    });
-}
-
 function runAsync(sql, params = []) {
     return new Promise((resolve, reject) => {
         db.run(sql, params, function (err) {
@@ -66,8 +49,17 @@ async function seedCategoriesIfEmpty(table, defaults) {
         const rows = await allAsync(`SELECT COUNT(*) as count FROM ${table}`, []);
         const count = Number(rows[0].count);
         if (count === 0) {
+            // Pakai insert yang aman terhadap duplikat (bukan cuma cek count di awal), supaya kalau ada
+            // proses lain yang kebetulan mengisi bersamaan, tidak ada kategori default yang gagal ke-skip.
+            const insertSql = isPg
+                ? `INSERT INTO ${table} (name) VALUES (?) ON CONFLICT (name) DO NOTHING`
+                : `INSERT OR IGNORE INTO ${table} (name) VALUES (?)`;
             for (const name of defaults) {
-                await runAsync(`INSERT INTO ${table} (name) VALUES (?)`, [name]);
+                try {
+                    await runAsync(insertSql, [name]);
+                } catch (err) {
+                    console.error(`Gagal menambah kategori default "${name}" ke ${table}`, err);
+                }
             }
         }
     } catch (err) {
@@ -206,6 +198,23 @@ async function initTables() {
     } catch (err) {
         console.error('Gagal inisialisasi tabel:', err);
     }
+}
+
+if (isPg) {
+    const { createPgAdapter } = require('./pg-adapter');
+    db = createPgAdapter(DATABASE_URL);
+    console.log('Connected to PostgreSQL database');
+    initTables();
+} else {
+    const sqlite3 = require('sqlite3').verbose();
+    db = new sqlite3.Database(path.join(__dirname, 'foodcost.db'), (err) => {
+        if (err) {
+            console.error('Error opening database', err);
+        } else {
+            console.log('Connected to SQLite database');
+            initTables();
+        }
+    });
 }
 
 module.exports = db;
