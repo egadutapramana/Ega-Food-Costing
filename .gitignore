@@ -1,0 +1,5 @@
+node_modules/
+.env
+backend/database/backups/
+backend/database/foodcost.db
+.claude/

@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Food Cost App</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <h1>🍽️ Food Cost App</h1>
+    <p>Kelola bahan baku, supplier, dan hitung HPP resepmu</p>
+    <div id="userBar" class="user-bar" style="display:none;">
+      <span id="userInfo"></span>
+      <button type="button" id="profileBtn" class="logout-btn">⚙️ Profil</button>
+      <button type="button" id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+  </header>
+
+  <!-- Overlay Login -->
+  <div id="loginOverlay" class="modal-overlay">
+    <div class="modal-box login-box">
+      <h2 style="color:#2e7d32; margin-bottom: 16px;">🔒 Login</h2>
+      <form id="loginForm">
+        <input type="text" id="loginUsername" placeholder="Username" required autocomplete="username">
+        <input type="password" id="loginPassword" placeholder="Password" required autocomplete="current-password">
+        <button type="submit">Masuk</button>
+      </form>
+      <p id="loginError" class="login-error" style="display:none;"></p>
+      <p class="login-hint">Belum punya akun? Kalau ini pemakaian pertama, daftar sebagai admin di bawah.</p>
+      <details>
+        <summary>Daftar akun admin pertama</summary>
+        <form id="bootstrapForm">
+          <input type="text" id="bootstrapUsername" placeholder="Username admin" required>
+          <input type="password" id="bootstrapPassword" placeholder="Password (min 6 karakter)" required minlength="6">
+          <button type="submit">Daftar Admin</button>
+        </form>
+      </details>
+    </div>
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <main id="appMain" style="display:none;">
+    <nav class="tab-nav">
+      <button type="button" class="tab-btn active" data-tab="dashboard">📊 Dashboard</button>
+      <button type="button" class="tab-btn" data-tab="supplier">🏢 Supplier</button>
+      <button type="button" class="tab-btn" data-tab="ingredient">🥕 Bahan Baku</button>
+      <button type="button" class="tab-btn" data-tab="recipe">🍽️ Resep</button>
+      <button type="button" class="tab-btn" data-tab="menu">📋 Menu</button>
+      <button type="button" class="tab-btn" id="userTabBtn" data-tab="user" style="display:none;">👤 User</button>
+    </nav>
+
+    <!-- Tab: Dashboard & Laporan -->
+    <div class="tab-content" id="tab-dashboard">
+      <section class="card">
+        <h2>📊 Dashboard Ringkasan</h2>
+        <div id="dashboardSummary" class="dashboard-grid"></div>
+
+        <div class="dashboard-columns">
+          <div>
+            <h3>🏆 Resep Paling Untung (Food Cost Terendah)</h3>
+            <ol id="mostProfitableList"><li><em>Memuat...</em></li></ol>
+          </div>
+          <div>
+            <h3>📉 Resep Paling Boros (Food Cost Tertinggi)</h3>
+            <ol id="leastProfitableList"><li><em>Memuat...</em></li></ol>
+          </div>
+        </div>
+
+        <h3>💰 Bahan Baku Termahal</h3>
+        <ol id="expensiveIngredientsList"><li><em>Memuat...</em></li></ol>
+
+        <div id="overTargetSection" style="display:none;">
+          <h3>🔴 Resep Melebihi Target Margin</h3>
+          <ol id="overTargetList"></ol>
+        </div>
+
+        <div class="export-buttons">
+          <a href="http://localhost:3000/api/reports/recipes/export/excel" class="export-btn">📥 Export Resep (Excel)</a>
+          <a href="http://localhost:3000/api/reports/recipes/export/pdf" class="export-btn">📥 Export Resep (PDF)</a>
+          <a href="http://localhost:3000/api/reports/ingredients/export/excel" class="export-btn">📥 Export Bahan Baku (Excel)</a>
+        </div>
+      </section>
+    </div>
+
+    <!-- Tab: Supplier -->
+    <div class="tab-content" id="tab-supplier" style="display:none;">
+      <section class="card">
+        <h2 id="supFormTitle">Tambah Supplier</h2>
+        <form id="supplierForm">
+          <input type="hidden" id="supId" value="">
+          <input type="text" id="supName" placeholder="Nama supplier" required>
+          <input type="text" id="supContact" placeholder="Kontak (telepon/email)">
+          <div class="form-actions">
+            <button type="submit" id="supSubmitBtn">Tambah Supplier</button>
+            <button type="button" id="supCancelBtn" class="cancel-btn" style="display:none;">Batal Edit</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Daftar Supplier</h2>
+        <div class="search-bar">
+          <input type="text" id="supSearchInput" placeholder="🔍 Cari nama atau kontak supplier...">
+        </div>
+        <table id="supplierTable">
+          <thead>
+            <tr>
+              <th>Nama</th>
+              <th>Kontak</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Data akan diisi otomatis lewat JavaScript -->
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <!-- Tab: Bahan Baku -->
+    <div class="tab-content" id="tab-ingredient" style="display:none;">
+      <section class="card">
+        <h2 id="ingFormTitle">Tambah Bahan Baku</h2>
+        <form id="ingredientForm">
+          <input type="hidden" id="ingId" value="">
+          <input type="text" id="ingName" placeholder="Nama bahan" required>
+          <input type="text" id="ingUnit" placeholder="Satuan (kg, liter, pcs)" required>
+          <input type="number" id="ingPrice" placeholder="Harga per satuan" min="0" step="0.01" required>
+          <select id="ingSupplier" required>
+            <option value="">Pilih Supplier</option>
+          </select>
+          <select id="ingCategory">
+            <option value="">Tanpa kategori</option>
+          </select>
+          <div class="form-actions">
+            <button type="submit" id="ingSubmitBtn">Tambah Bahan</button>
+            <button type="button" id="ingCancelBtn" class="cancel-btn" style="display:none;">Batal Edit</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card admin-only-block" id="ingCategoryManagerSection">
+        <h2>🏷️ Kelola Kategori Bahan</h2>
+        <table id="ingCategoryTable">
+          <tbody></tbody>
+        </table>
+        <form id="ingCategoryAddForm" class="form-actions" style="margin-top: 12px;">
+          <input type="text" id="newIngCategoryName" placeholder="Nama kategori baru" required>
+          <button type="submit">Tambah Kategori</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Daftar Bahan Baku</h2>
+        <div class="search-bar">
+          <input type="text" id="ingSearchInput" placeholder="🔍 Cari nama bahan...">
+          <select id="ingFilterSupplier">
+            <option value="">Semua Supplier</option>
+          </select>
+          <select id="ingFilterCategory">
+            <option value="">Semua Kategori</option>
+          </select>
+        </div>
+        <table id="ingredientTable">
+          <thead>
+            <tr>
+              <th>Nama</th>
+              <th>Satuan</th>
+              <th>Harga/Satuan</th>
+              <th>Kategori</th>
+              <th>Supplier</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Data akan diisi otomatis lewat JavaScript -->
+          </tbody>
+        </table>
+        <div id="ingPagination" class="pagination"></div>
+      </section>
+    </div>
+
+    <!-- Tab: Resep -->
+    <div class="tab-content" id="tab-recipe" style="display:none;">
+      <section class="card">
+        <h2 id="recFormTitle">Tambah Resep</h2>
+        <form id="recipeForm">
+          <input type="hidden" id="recId" value="">
+          <input type="text" id="recName" placeholder="Nama resep" required>
+          <input type="number" id="recPrice" placeholder="Harga jual" min="0.01" step="0.01" required>
+          <input type="number" id="recPortion" placeholder="Jumlah porsi" min="1" step="1" required>
+          <input type="number" id="recTargetPercent" placeholder="Target Food Cost % (default 30)" min="0.01" step="0.01">
+          <select id="recCategory">
+            <option value="">Tanpa kategori</option>
+          </select>
+          <div class="form-actions">
+            <button type="submit" id="recSubmitBtn">Tambah Resep</button>
+            <button type="button" id="recCancelBtn" class="cancel-btn" style="display:none;">Batal Edit</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card admin-only-block" id="recCategoryManagerSection">
+        <h2>🏷️ Kelola Kategori Resep</h2>
+        <table id="recCategoryTable">
+          <tbody></tbody>
+        </table>
+        <form id="recCategoryAddForm" class="form-actions" style="margin-top: 12px;">
+          <input type="text" id="newRecCategoryName" placeholder="Nama kategori baru" required>
+          <button type="submit">Tambah Kategori</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Tambah Bahan ke Resep</h2>
+        <form id="recipeIngredientForm">
+          <select id="recipeSelect" required>
+            <option value="">Pilih Resep</option>
+          </select>
+          <select id="ingredientSelect" required>
+            <option value="">Pilih Bahan</option>
+          </select>
+          <input type="number" id="qtyUsed" placeholder="Jumlah dipakai" min="0.01" step="0.01" required>
+          <select id="usedUnitSelect" required>
+            <option value="">Satuan</option>
+          </select>
+          <button type="submit">Tambah ke Resep</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Daftar Resep & HPP</h2>
+        <div class="search-bar">
+          <input type="text" id="recSearchInput" placeholder="🔍 Cari nama resep...">
+          <select id="recFilterCategory">
+            <option value="">Semua Kategori</option>
+          </select>
+        </div>
+        <div id="recipeList">
+          <!-- Detail resep akan diisi otomatis lewat JavaScript -->
+        </div>
+        <div id="recPagination" class="pagination"></div>
+      </section>
+    </div>
+
+    <!-- Tab: Menu (nama dish + harga saja, ringkas) -->
+    <div class="tab-content" id="tab-menu" style="display:none;">
+      <section class="card">
+        <h2>📋 Daftar Menu</h2>
+        <div class="search-bar">
+          <input type="text" id="menuSearchInput" placeholder="🔍 Cari nama dish...">
+          <select id="menuFilterCategory">
+            <option value="">Semua Kategori</option>
+          </select>
+        </div>
+        <table id="menuTable">
+          <thead>
+            <tr>
+              <th>Nama Dish</th>
+              <th>Kategori</th>
+              <th>Harga</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Data akan diisi otomatis lewat JavaScript -->
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <!-- Tab: Manajemen User (khusus admin) -->
+    <div class="tab-content" id="tab-user" style="display:none;">
+      <section class="card">
+        <h2>👤 Manajemen User</h2>
+        <form id="userForm">
+          <input type="text" id="newUsername" placeholder="Username baru" required>
+          <input type="password" id="newPassword" placeholder="Password (min 6 karakter)" required minlength="6">
+          <select id="newUserRole">
+            <option value="staff">Staff</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button type="submit">Tambah User</button>
+        </form>
+        <div class="search-bar">
+          <input type="text" id="userSearchInput" placeholder="🔍 Cari username...">
+        </div>
+        <table id="userTable">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Role</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+
+  <!-- Modal: Riwayat Harga Bahan -->
+  <div id="modalOverlay" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modalTitle">Riwayat Harga</h3>
+        <button type="button" id="modalCloseBtn" class="modal-close">&times;</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Modal: Ganti Profil (username & password akun sendiri) -->
+  <div id="profileModalOverlay" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>⚙️ Ganti Profil</h3>
+        <button type="button" id="profileModalCloseBtn" class="modal-close">&times;</button>
+      </div>
+      <form id="profileForm">
+        <input type="text" id="profileNewUsername" placeholder="Username baru (kosongkan kalau tidak diganti)">
+        <input type="password" id="profileNewPassword" placeholder="Password baru (kosongkan kalau tidak diganti)" minlength="6">
+        <input type="password" id="profileNewPasswordConfirm" placeholder="Konfirmasi password baru">
+        <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee;">
+        <input type="password" id="profileCurrentPassword" placeholder="Password saat ini (wajib, untuk konfirmasi)" required>
+        <div class="form-actions">
+          <button type="submit">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
