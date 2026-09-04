@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000/api';
+const API_URL = API_BASE_URL; // didefinisikan di config.js, dimuat sebelum file ini
 
 // ==========================
 // AUTH: token, current user, dan wrapper fetch yang otomatis kirim Authorization header
@@ -119,6 +119,9 @@ const recPaginationEl = document.getElementById('recPagination');
 const menuSearchInput = document.getElementById('menuSearchInput');
 const menuFilterCategory = document.getElementById('menuFilterCategory');
 const menuTableBody = document.querySelector('#menuTable tbody');
+const exportRecipesExcelBtn = document.getElementById('exportRecipesExcelBtn');
+const exportRecipesPdfBtn = document.getElementById('exportRecipesPdfBtn');
+const exportIngredientsExcelBtn = document.getElementById('exportIngredientsExcelBtn');
 
 const modalOverlay = document.getElementById('modalOverlay');
 const modalTitle = document.getElementById('modalTitle');
@@ -679,6 +682,50 @@ async function loadRecipes() {
     console.error('Gagal memuat recipes:', err);
   }
 }
+
+// ==========================
+// FUNGSI: Download file export (Excel/PDF) dengan Authorization header
+// (tidak bisa pakai <a href> biasa karena butuh kirim token login)
+// ==========================
+async function downloadExport(url, filename, button) {
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = 'Memproses...';
+
+  try {
+    const res = await apiFetch(url);
+    if (!res.ok) {
+      const result = await res.json().catch(() => ({}));
+      throw new Error(result.error || 'Gagal mengunduh file');
+    }
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch (err) {
+    showToast('Terjadi kesalahan: ' + err.message);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+exportRecipesExcelBtn.addEventListener('click', () => {
+  downloadExport(`${API_URL}/reports/recipes/export/excel`, 'laporan-hpp-resep.xlsx', exportRecipesExcelBtn);
+});
+
+exportRecipesPdfBtn.addEventListener('click', () => {
+  downloadExport(`${API_URL}/reports/recipes/export/pdf`, 'laporan-hpp-resep.pdf', exportRecipesPdfBtn);
+});
+
+exportIngredientsExcelBtn.addEventListener('click', () => {
+  downloadExport(`${API_URL}/reports/ingredients/export/excel`, 'daftar-bahan-baku.xlsx', exportIngredientsExcelBtn);
+});
 
 // ==========================
 // FUNGSI: Ambil & Tampilkan Dashboard Ringkasan

@@ -78,9 +78,9 @@
         </div>
 
         <div class="export-buttons">
-          <a href="http://localhost:3000/api/reports/recipes/export/excel" class="export-btn">📥 Export Resep (Excel)</a>
-          <a href="http://localhost:3000/api/reports/recipes/export/pdf" class="export-btn">📥 Export Resep (PDF)</a>
-          <a href="http://localhost:3000/api/reports/ingredients/export/excel" class="export-btn">📥 Export Bahan Baku (Excel)</a>
+          <button type="button" class="export-btn" id="exportRecipesExcelBtn">📥 Export Resep (Excel)</button>
+          <button type="button" class="export-btn" id="exportRecipesPdfBtn">📥 Export Resep (PDF)</button>
+          <button type="button" class="export-btn" id="exportIngredientsExcelBtn">📥 Export Bahan Baku (Excel)</button>
         </div>
       </section>
     </div>
@@ -332,6 +332,7 @@
     </div>
   </div>
 
+  <script src="config.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
