@@ -44,6 +44,14 @@ function listBackups() {
 }
 
 function startBackupScheduler() {
+    if (process.env.DATABASE_URL) {
+        // Mode PostgreSQL (produksi): backup file lokal tidak relevan karena filesystem hosting
+        // biasanya "ephemeral" (hilang tiap redeploy/restart). Andalkan backup otomatis bawaan
+        // provider database (misal Neon), plus fitur "Export Semua Data" manual di aplikasi.
+        console.log('Mode PostgreSQL terdeteksi: backup file lokal dilewati. Gunakan backup otomatis provider database (misal Neon) dan tombol "Export Semua Data" di aplikasi.');
+        return;
+    }
+
     runBackup(); // backup langsung sekali saat server start
     setInterval(runBackup, INTERVAL_HOURS * 60 * 60 * 1000);
     console.log(`Backup otomatis aktif: tiap ${INTERVAL_HOURS} jam, disimpan di ${BACKUP_DIR}`);

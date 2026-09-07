@@ -727,6 +727,12 @@ exportIngredientsExcelBtn.addEventListener('click', () => {
   downloadExport(`${API_URL}/reports/ingredients/export/excel`, 'daftar-bahan-baku.xlsx', exportIngredientsExcelBtn);
 });
 
+const exportBackupBtn = document.getElementById('exportBackupBtn');
+exportBackupBtn.addEventListener('click', () => {
+  const today = new Date().toISOString().slice(0, 10);
+  downloadExport(`${API_URL}/backup/export`, `food-cost-backup-${today}.json`, exportBackupBtn);
+});
+
 // ==========================
 // FUNGSI: Ambil & Tampilkan Dashboard Ringkasan
 // ==========================
