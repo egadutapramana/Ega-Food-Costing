@@ -113,6 +113,9 @@ const recipeIngredientForm = document.getElementById('recipeIngredientForm');
 const recipeSelect = document.getElementById('recipeSelect');
 const ingredientSelect = document.getElementById('ingredientSelect');
 const usedUnitSelect = document.getElementById('usedUnitSelect');
+const riFormTitle = document.getElementById('riFormTitle');
+const riSubmitBtn = document.getElementById('riSubmitBtn');
+const riCancelBtn = document.getElementById('riCancelBtn');
 const recipeList = document.getElementById('recipeList');
 const recSearchInput = document.getElementById('recSearchInput');
 const recPaginationEl = document.getElementById('recPagination');
@@ -810,7 +813,13 @@ function renderRecipeCard(recipe) {
 
   const ingredientListHtml = recipe.ingredients.map(ing => {
     const displayUnit = ing.used_unit || ing.unit;
-    return `<li>${ing.name} — ${ing.quantity_used} ${displayUnit} (Rp${Number(ing.price_per_unit).toLocaleString('id-ID')}/${ing.unit})</li>`;
+    return `
+      <li>
+        <span>${ing.name} — ${ing.quantity_used} ${displayUnit} (Rp${Number(ing.price_per_unit).toLocaleString('id-ID')}/${ing.unit})</span>
+        <button type="button" class="ri-edit-btn" data-recipe-id="${recipe.id}" data-ri-id="${ing.recipe_ingredient_id}" data-ingredient-id="${ing.ingredient_id}" data-qty="${ing.quantity_used}" data-unit="${displayUnit}" title="Edit bahan ini">✏️</button>
+        <button type="button" class="ri-delete-btn" data-recipe-id="${recipe.id}" data-ri-id="${ing.recipe_ingredient_id}" title="Hapus bahan ini dari resep">🗑️</button>
+      </li>
+    `;
   }).join('');
 
   const hasPercentage = recipe.food_cost_percentage !== null;
@@ -1057,6 +1066,61 @@ recipeForm.addEventListener('submit', async (e) => {
 // ==========================
 // EVENT: Submit Form Tambah Bahan ke Recipe
 // ==========================
+// ==========================
+// EDIT MODE: Bahan di dalam resep (recipe_ingredients)
+// ==========================
+function startEditRecipeIngredient(recipeId, riId, ingredientId, qty, unit) {
+  recipeSelect.value = recipeId;
+  ingredientSelect.value = ingredientId;
+  ingredientSelect.dispatchEvent(new Event('change')); // isi ulang pilihan Satuan yang kompatibel
+  usedUnitSelect.value = normalizeUnit(unit) || unit;
+  document.getElementById('qtyUsed').value = qty;
+  document.getElementById('riEditId').value = riId;
+
+  riFormTitle.textContent = 'Edit Bahan di Resep';
+  riSubmitBtn.textContent = 'Update Bahan';
+  riCancelBtn.style.display = 'inline-block';
+  recipeIngredientForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function cancelEditRecipeIngredient() {
+  recipeIngredientForm.reset();
+  document.getElementById('riEditId').value = '';
+  resetUsedUnitSelectDefault();
+  riFormTitle.textContent = 'Tambah Bahan ke Resep';
+  riSubmitBtn.textContent = 'Tambah ke Resep';
+  riCancelBtn.style.display = 'none';
+}
+
+riCancelBtn.addEventListener('click', cancelEditRecipeIngredient);
+
+async function handleDeleteRecipeIngredient(recipeId, riId) {
+  const confirmDelete = confirm('Yakin ingin menghapus bahan ini dari resep?');
+  if (!confirmDelete) return;
+
+  try {
+    const res = await apiFetch(`${API_URL}/recipes/${recipeId}/ingredients/${riId}`, { method: 'DELETE' });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Gagal menghapus bahan dari resep');
+
+    loadRecipes();
+    loadDashboard();
+    showToast('Bahan berhasil dihapus dari resep', 'success');
+  } catch (err) {
+    showToast('Terjadi kesalahan: ' + err.message);
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('ri-edit-btn')) {
+    const d = e.target.dataset;
+    startEditRecipeIngredient(d.recipeId, d.riId, d.ingredientId, d.qty, d.unit);
+  }
+  if (e.target.classList.contains('ri-delete-btn')) {
+    handleDeleteRecipeIngredient(e.target.dataset.recipeId, e.target.dataset.riId);
+  }
+});
+
 recipeIngredientForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -1064,6 +1128,7 @@ recipeIngredientForm.addEventListener('submit', async (e) => {
   const ingredient_id = ingredientSelect.value;
   const quantity_used = document.getElementById('qtyUsed').value;
   const unit = usedUnitSelect.value;
+  const riEditId = document.getElementById('riEditId').value;
 
   if (!recipeId) {
     showToast('Pilih resep terlebih dahulu!');
@@ -1078,23 +1143,36 @@ recipeIngredientForm.addEventListener('submit', async (e) => {
     return;
   }
 
+  const isEdit = Boolean(riEditId);
+  const url = isEdit
+    ? `${API_URL}/recipes/${recipeId}/ingredients/${riEditId}`
+    : `${API_URL}/recipes/${recipeId}/ingredients`;
+  const method = isEdit ? 'PUT' : 'POST';
+  const body = isEdit
+    ? { quantity_used, unit }
+    : { ingredient_id, quantity_used, unit };
+
   try {
-    const res = await apiFetch(`${API_URL}/recipes/${recipeId}/ingredients`, {
-      method: 'POST',
+    const res = await apiFetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ingredient_id, quantity_used, unit })
+      body: JSON.stringify(body)
     });
 
     const result = await res.json();
-    if (!res.ok) throw new Error(result.error || 'Gagal menambah bahan ke resep');
+    if (!res.ok) throw new Error(result.error || `Gagal ${isEdit ? 'mengupdate' : 'menambah'} bahan di resep`);
 
-    // Sengaja tidak reset recipeSelect supaya bisa langsung tambah bahan berikutnya ke resep yang sama
-    ingredientSelect.value = '';
-    document.getElementById('qtyUsed').value = '';
-    resetUsedUnitSelectDefault();
+    if (isEdit) {
+      cancelEditRecipeIngredient();
+    } else {
+      // Sengaja tidak reset recipeSelect supaya bisa langsung tambah bahan berikutnya ke resep yang sama
+      ingredientSelect.value = '';
+      document.getElementById('qtyUsed').value = '';
+      resetUsedUnitSelectDefault();
+    }
     loadRecipes();
     loadDashboard();
-    showToast('Bahan berhasil ditambahkan ke resep', 'success');
+    showToast(isEdit ? 'Bahan di resep berhasil diupdate' : 'Bahan berhasil ditambahkan ke resep', 'success');
   } catch (err) {
     showToast('Terjadi kesalahan: ' + err.message);
   }

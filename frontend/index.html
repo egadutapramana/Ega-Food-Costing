@@ -216,8 +216,9 @@
       </section>
 
       <section class="card">
-        <h2>Tambah Bahan ke Resep</h2>
+        <h2 id="riFormTitle">Tambah Bahan ke Resep</h2>
         <form id="recipeIngredientForm">
+          <input type="hidden" id="riEditId" value="">
           <select id="recipeSelect" required>
             <option value="">Pilih Resep</option>
           </select>
@@ -230,7 +231,10 @@
             <option value="ml">ml</option>
             <option value="pcs">pcs</option>
           </select>
-          <button type="submit">Tambah ke Resep</button>
+          <div class="form-actions">
+            <button type="submit" id="riSubmitBtn">Tambah ke Resep</button>
+            <button type="button" id="riCancelBtn" class="cancel-btn" style="display:none;">Batal Edit</button>
+          </div>
         </form>
       </section>
 

@@ -61,7 +61,7 @@ router.get('/:id', (req, res) => {
 
     const recipeSql = `SELECT * FROM recipes WHERE id = ?`;
     const ingredientsSql = `
-        SELECT ri.quantity_used, ri.unit as used_unit, i.name, i.unit, i.price_per_unit
+        SELECT ri.id as recipe_ingredient_id, ri.ingredient_id, ri.quantity_used, ri.unit as used_unit, i.name, i.unit, i.price_per_unit
         FROM recipe_ingredients ri
         JOIN ingredients i ON ri.ingredient_id = i.id
         WHERE ri.recipe_id = ?
@@ -187,6 +187,41 @@ router.post('/:id/ingredients', (req, res) => {
             }
         );
     });
+});
+
+// PUT ubah jumlah/satuan 1 baris bahan yang sudah ada di resep
+router.put('/:recipeId/ingredients/:ingredientRowId', (req, res) => {
+    const { recipeId, ingredientRowId } = req.params;
+    const { quantity_used } = req.body;
+    const requestedUnit = (req.body.unit || '').trim();
+
+    if (!isPositiveNumber(quantity_used)) {
+        return res.status(400).json({ error: 'Jumlah dipakai harus berupa angka lebih dari 0' });
+    }
+
+    db.get(
+        'SELECT ri.ingredient_id, i.unit FROM recipe_ingredients ri JOIN ingredients i ON ri.ingredient_id = i.id WHERE ri.id = ? AND ri.recipe_id = ?',
+        [ingredientRowId, recipeId],
+        (err, row) => {
+            if (err) return res.status(500).json({ error: err.message });
+            if (!row) return res.status(404).json({ error: 'Data bahan pada resep tidak ditemukan' });
+
+            const finalUnit = requestedUnit || row.unit;
+            if (finalUnit !== row.unit && convertQuantity(1, finalUnit, row.unit) === null) {
+                return res.status(400).json({ error: `Satuan "${finalUnit}" tidak bisa dikonversi ke satuan bahan (${row.unit})` });
+            }
+
+            db.run(
+                'UPDATE recipe_ingredients SET quantity_used = ?, unit = ? WHERE id = ? AND recipe_id = ?',
+                [quantity_used, finalUnit, ingredientRowId, recipeId],
+                function (err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    if (this.changes === 0) return res.status(404).json({ error: 'Data bahan pada resep tidak ditemukan' });
+                    res.json({ id: Number(ingredientRowId), recipe_id: recipeId, quantity_used, unit: finalUnit });
+                }
+            );
+        }
+    );
 });
 
 // DELETE recipe (beserta semua relasi ingredient-nya)
