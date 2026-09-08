@@ -498,6 +498,17 @@ function populateSupplierDropdowns(suppliers) {
 }
 
 // ==========================
+// FUNGSI: Isi dropdown Satuan dengan opsi default (gr, ml, pcs) - dipakai sebelum bahan dipilih
+// ==========================
+function resetUsedUnitSelectDefault() {
+  usedUnitSelect.innerHTML = `
+    <option value="g">gr</option>
+    <option value="ml">ml</option>
+    <option value="pcs">pcs</option>
+  `;
+}
+
+// ==========================
 // FUNGSI: Dropdown bahan untuk form "Tambah Bahan ke Resep" (selalu daftar penuh)
 // ==========================
 async function loadIngredientDropdown() {
@@ -513,7 +524,7 @@ async function loadIngredientDropdown() {
       option.textContent = `${ing.name} (${ing.unit})`;
       ingredientSelect.appendChild(option);
     });
-    usedUnitSelect.innerHTML = '<option value="">Satuan</option>';
+    resetUsedUnitSelectDefault();
   } catch (err) {
     console.error('Gagal memuat daftar bahan:', err);
   }
@@ -527,7 +538,7 @@ ingredientSelect.addEventListener('change', () => {
   usedUnitSelect.innerHTML = '';
 
   if (!ing) {
-    usedUnitSelect.innerHTML = '<option value="">Satuan</option>';
+    resetUsedUnitSelectDefault();
     return;
   }
 
@@ -1080,7 +1091,7 @@ recipeIngredientForm.addEventListener('submit', async (e) => {
     // Sengaja tidak reset recipeSelect supaya bisa langsung tambah bahan berikutnya ke resep yang sama
     ingredientSelect.value = '';
     document.getElementById('qtyUsed').value = '';
-    usedUnitSelect.innerHTML = '<option value="">Satuan</option>';
+    resetUsedUnitSelectDefault();
     loadRecipes();
     loadDashboard();
     showToast('Bahan berhasil ditambahkan ke resep', 'success');
