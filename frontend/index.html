@@ -129,7 +129,19 @@
           <input type="hidden" id="ingId" value="">
           <input type="text" id="ingName" placeholder="Nama bahan" required>
           <input type="text" id="ingUnit" placeholder="Satuan (kg, liter, pcs)" required>
+
+          <label class="checkbox-label">
+            <input type="checkbox" id="ingIsBasedProduct">
+            🔗 Bahan olahan dari resep lain? (misal Rica Rica Sauce, Mashed Potato)
+          </label>
+
           <input type="number" id="ingPrice" placeholder="Harga per satuan" min="0" step="0.01" required>
+
+          <select id="ingSourceRecipe" style="display:none;">
+            <option value="">Pilih Resep Sumber</option>
+          </select>
+          <input type="number" id="ingYieldQuantity" placeholder="Jumlah hasil (yield), misal 1000 untuk 1000 gram" min="0.01" step="0.01" style="display:none;">
+
           <select id="ingSupplier" required>
             <option value="">Pilih Supplier</option>
           </select>

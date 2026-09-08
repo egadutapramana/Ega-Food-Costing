@@ -100,6 +100,10 @@ const ingSearchInput = document.getElementById('ingSearchInput');
 const ingFilterSupplier = document.getElementById('ingFilterSupplier');
 const ingFilterCategory = document.getElementById('ingFilterCategory');
 const ingCategorySelect = document.getElementById('ingCategory');
+const ingIsBasedProduct = document.getElementById('ingIsBasedProduct');
+const ingPriceInput = document.getElementById('ingPrice');
+const ingSourceRecipeSelect = document.getElementById('ingSourceRecipe');
+const ingYieldQuantityInput = document.getElementById('ingYieldQuantity');
 const ingPaginationEl = document.getElementById('ingPagination');
 
 const recipeForm = document.getElementById('recipeForm');
@@ -574,9 +578,10 @@ async function loadIngredients() {
       const supplier = currentSuppliers.find(s => s.id === ing.supplier_id);
       const supplierName = supplier ? supplier.name : '-';
 
+      const basedProductBadge = ing.source_recipe_id ? '<span class="based-product-badge">🔗 Based Product</span>' : '';
       const row = document.createElement('tr');
       row.innerHTML = `
-        <td>${ing.name}</td>
+        <td>${ing.name}${basedProductBadge}</td>
         <td>${ing.unit}</td>
         <td>Rp${Number(ing.price_per_unit).toLocaleString('id-ID')}</td>
         <td>${ing.category || '-'}</td>
@@ -627,10 +632,52 @@ async function loadMenuList() {
     const res = await apiFetch(`${API_URL}/recipes`);
     menuListCache = await res.json();
     applyMenuFilter();
+    populateSourceRecipeDropdown();
   } catch (err) {
     console.error('Gagal memuat daftar menu:', err);
   }
 }
+
+// ==========================
+// FUNGSI: Bahan "Based Product" - dropdown resep sumber & toggle field form
+// ==========================
+function populateSourceRecipeDropdown() {
+  const keepValue = ingSourceRecipeSelect.value;
+  ingSourceRecipeSelect.innerHTML = '<option value="">Pilih Resep Sumber</option>';
+  menuListCache
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach(rec => {
+      const option = document.createElement('option');
+      option.value = rec.id;
+      option.textContent = rec.name;
+      ingSourceRecipeSelect.appendChild(option);
+    });
+  ingSourceRecipeSelect.value = keepValue;
+}
+
+function toggleBasedProductFields(isBasedProduct) {
+  ingSourceRecipeSelect.style.display = isBasedProduct ? '' : 'none';
+  ingYieldQuantityInput.style.display = isBasedProduct ? '' : 'none';
+  ingSourceRecipeSelect.required = isBasedProduct;
+  ingYieldQuantityInput.required = isBasedProduct;
+  ingSupplierSelect.required = !isBasedProduct;
+
+  if (isBasedProduct) {
+    ingPriceInput.value = '';
+    ingPriceInput.required = false;
+    ingPriceInput.disabled = true;
+    ingPriceInput.placeholder = 'Otomatis dihitung dari resep sumber';
+  } else {
+    ingPriceInput.required = true;
+    ingPriceInput.disabled = false;
+    ingPriceInput.placeholder = 'Harga per satuan';
+  }
+}
+
+ingIsBasedProduct.addEventListener('change', (e) => {
+  toggleBasedProductFields(e.target.checked);
+});
 
 function applyMenuFilter() {
   const term = menuSearchTerm.trim().toLowerCase();
@@ -879,9 +926,19 @@ function startEditIngredient(ing) {
   document.getElementById('ingId').value = ing.id;
   document.getElementById('ingName').value = ing.name;
   document.getElementById('ingUnit').value = ing.unit;
-  document.getElementById('ingPrice').value = ing.price_per_unit;
   ingSupplierSelect.value = ing.supplier_id || '';
   ingCategorySelect.value = ing.category || '';
+
+  const isBasedProduct = Boolean(ing.source_recipe_id);
+  ingIsBasedProduct.checked = isBasedProduct;
+  toggleBasedProductFields(isBasedProduct);
+  if (isBasedProduct) {
+    ingSourceRecipeSelect.value = ing.source_recipe_id;
+    ingYieldQuantityInput.value = ing.yield_quantity;
+  } else {
+    document.getElementById('ingPrice').value = ing.price_per_unit;
+  }
+
   ingFormTitle.textContent = 'Edit Bahan Baku';
   ingSubmitBtn.textContent = 'Update Bahan';
   ingCancelBtn.style.display = 'inline-block';
@@ -891,6 +948,7 @@ function startEditIngredient(ing) {
 function cancelEditIngredient() {
   ingredientForm.reset();
   document.getElementById('ingId').value = '';
+  toggleBasedProductFields(false);
   ingFormTitle.textContent = 'Tambah Bahan Baku';
   ingSubmitBtn.textContent = 'Tambah Bahan';
   ingCancelBtn.style.display = 'none';
@@ -972,12 +1030,24 @@ ingredientForm.addEventListener('submit', async (e) => {
   const price_per_unit = document.getElementById('ingPrice').value;
   const supplier_id = ingSupplierSelect.value;
   const category = ingCategorySelect.value || null;
+  const isBasedProduct = ingIsBasedProduct.checked;
+  const source_recipe_id = isBasedProduct ? ingSourceRecipeSelect.value : null;
+  const yield_quantity = isBasedProduct ? ingYieldQuantityInput.value : null;
 
   if (!name || !unit) {
     showToast('Nama dan satuan tidak boleh kosong');
     return;
   }
-  if (price_per_unit === '' || isNaN(Number(price_per_unit)) || Number(price_per_unit) < 0) {
+  if (isBasedProduct) {
+    if (!source_recipe_id) {
+      showToast('Pilih resep sumber untuk bahan olahan ini');
+      return;
+    }
+    if (yield_quantity === '' || isNaN(Number(yield_quantity)) || Number(yield_quantity) <= 0) {
+      showToast('Jumlah hasil (yield) harus berupa angka lebih dari 0');
+      return;
+    }
+  } else if (price_per_unit === '' || isNaN(Number(price_per_unit)) || Number(price_per_unit) < 0) {
     showToast('Harga per satuan harus berupa angka dan tidak boleh negatif');
     return;
   }
@@ -990,7 +1060,15 @@ ingredientForm.addEventListener('submit', async (e) => {
     const res = await apiFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, unit, price_per_unit, supplier_id: supplier_id || null, category })
+      body: JSON.stringify({
+        name,
+        unit,
+        price_per_unit: isBasedProduct ? 0 : price_per_unit,
+        supplier_id: supplier_id || null,
+        category,
+        source_recipe_id: source_recipe_id || null,
+        yield_quantity: yield_quantity || null
+      })
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.error || `Gagal ${isEdit ? 'mengupdate' : 'menambah'} bahan`);

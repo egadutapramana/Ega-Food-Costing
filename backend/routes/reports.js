@@ -4,6 +4,7 @@ const db = require('../database/db');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const { calculateRecipeCost } = require('../utils/recipeCalc');
+const { resolveIngredientRows } = require('../utils/ingredientCost');
 
 function dbAll(sql, params = []) {
     return new Promise((resolve, reject) => {
@@ -12,7 +13,7 @@ function dbAll(sql, params = []) {
 }
 
 const RECIPE_INGREDIENTS_SQL = `
-    SELECT ri.quantity_used, ri.unit as used_unit, i.name, i.unit, i.price_per_unit
+    SELECT ri.quantity_used, ri.unit as used_unit, i.name, i.unit, i.price_per_unit, i.source_recipe_id, i.yield_quantity
     FROM recipe_ingredients ri
     JOIN ingredients i ON ri.ingredient_id = i.id
     WHERE ri.recipe_id = ?
@@ -22,7 +23,8 @@ async function getAllRecipesWithCost() {
     const recipes = await dbAll('SELECT * FROM recipes ORDER BY name COLLATE NOCASE');
     const results = [];
     for (const recipe of recipes) {
-        const ingredientRows = await dbAll(RECIPE_INGREDIENTS_SQL, [recipe.id]);
+        const rawIngredientRows = await dbAll(RECIPE_INGREDIENTS_SQL, [recipe.id]);
+        const ingredientRows = await resolveIngredientRows(rawIngredientRows);
         const calc = calculateRecipeCost(recipe, ingredientRows);
         results.push({ ...recipe, ingredients: ingredientRows, ...calc });
     }

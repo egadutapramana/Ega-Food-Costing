@@ -5,6 +5,19 @@ const { isNonEmptyString, isPositiveNumber, isPositiveInteger } = require('../ut
 const { convertQuantity } = require('../utils/unitConversion');
 const { calculateRecipeCost, DEFAULT_TARGET_FOOD_COST_PERCENT } = require('../utils/recipeCalc');
 const { requireAdmin } = require('../middleware/auth');
+const { resolveIngredientRows, wouldCreateCycle } = require('../utils/ingredientCost');
+
+function dbGet(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)));
+    });
+}
+
+function dbAll(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)));
+    });
+}
 
 // GET recipes - mendukung search, filter kategori, & pagination lewat query params.
 // Tanpa query params sama sekali: kembalikan array penuh (dipakai dropdown).
@@ -55,38 +68,38 @@ router.get('/', (req, res) => {
     });
 });
 
-// GET detail recipe + kalkulasi HPP (dengan konversi satuan antara resep & satuan beli bahan)
-router.get('/:id', (req, res) => {
-    const recipeId = req.params.id;
+// GET detail recipe + kalkulasi HPP (dengan konversi satuan & resolusi harga based product)
+router.get('/:id', async (req, res) => {
+    try {
+        const recipeId = req.params.id;
 
-    const recipeSql = `SELECT * FROM recipes WHERE id = ?`;
-    const ingredientsSql = `
-        SELECT ri.id as recipe_ingredient_id, ri.ingredient_id, ri.quantity_used, ri.unit as used_unit, i.name, i.unit, i.price_per_unit
-        FROM recipe_ingredients ri
-        JOIN ingredients i ON ri.ingredient_id = i.id
-        WHERE ri.recipe_id = ?
-    `;
-
-    db.get(recipeSql, [recipeId], (err, recipe) => {
-        if (err) return res.status(500).json({ error: err.message });
+        const recipe = await dbGet('SELECT * FROM recipes WHERE id = ?', [recipeId]);
         if (!recipe) return res.status(404).json({ error: 'Recipe not found' });
 
-        db.all(ingredientsSql, [recipeId], (err, ingredients) => {
-            if (err) return res.status(500).json({ error: err.message });
+        const rawIngredients = await dbAll(
+            `SELECT ri.id as recipe_ingredient_id, ri.ingredient_id, ri.quantity_used, ri.unit as used_unit,
+                    i.name, i.unit, i.price_per_unit, i.source_recipe_id, i.yield_quantity
+             FROM recipe_ingredients ri
+             JOIN ingredients i ON ri.ingredient_id = i.id
+             WHERE ri.recipe_id = ?`,
+            [recipeId]
+        );
+        const ingredients = await resolveIngredientRows(rawIngredients);
 
-            const calc = calculateRecipeCost(recipe, ingredients);
+        const calc = calculateRecipeCost(recipe, ingredients);
 
-            res.json({
-                ...recipe,
-                target_food_cost_percent: calc.target_food_cost_percent,
-                ingredients,
-                hpp_total: calc.hpp_total,
-                hpp_per_portion: calc.hpp_per_portion,
-                food_cost_percentage: calc.food_cost_percentage !== null ? calc.food_cost_percentage.toFixed(2) : null,
-                over_target: calc.over_target
-            });
+        res.json({
+            ...recipe,
+            target_food_cost_percent: calc.target_food_cost_percent,
+            ingredients,
+            hpp_total: calc.hpp_total,
+            hpp_per_portion: calc.hpp_per_portion,
+            food_cost_percentage: calc.food_cost_percentage !== null ? calc.food_cost_percentage.toFixed(2) : null,
+            over_target: calc.over_target
         });
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 function validateRecipeInput(body) {
@@ -157,21 +170,25 @@ router.put('/:id', (req, res) => {
 });
 
 // POST tambah bahan ke recipe (dengan satuan pemakaian, boleh beda dari satuan beli bahan selama masih sekeluarga)
-router.post('/:id/ingredients', (req, res) => {
-    const { ingredient_id, quantity_used } = req.body;
-    const requestedUnit = (req.body.unit || '').trim();
-    const recipeId = req.params.id;
+router.post('/:id/ingredients', async (req, res) => {
+    try {
+        const { ingredient_id, quantity_used } = req.body;
+        const requestedUnit = (req.body.unit || '').trim();
+        const recipeId = req.params.id;
 
-    if (!ingredient_id) {
-        return res.status(400).json({ error: 'Bahan harus dipilih' });
-    }
-    if (!isPositiveNumber(quantity_used)) {
-        return res.status(400).json({ error: 'Jumlah dipakai harus berupa angka lebih dari 0' });
-    }
+        if (!ingredient_id) {
+            return res.status(400).json({ error: 'Bahan harus dipilih' });
+        }
+        if (!isPositiveNumber(quantity_used)) {
+            return res.status(400).json({ error: 'Jumlah dipakai harus berupa angka lebih dari 0' });
+        }
 
-    db.get('SELECT unit FROM ingredients WHERE id = ?', [ingredient_id], (err, ingredient) => {
-        if (err) return res.status(500).json({ error: err.message });
+        const ingredient = await dbGet('SELECT unit, source_recipe_id FROM ingredients WHERE id = ?', [ingredient_id]);
         if (!ingredient) return res.status(400).json({ error: 'Bahan tidak ditemukan' });
+
+        if (await wouldCreateCycle(recipeId, ingredient)) {
+            return res.status(400).json({ error: 'Tidak bisa menambah bahan ini karena akan membuat referensi melingkar antar resep' });
+        }
 
         const finalUnit = requestedUnit || ingredient.unit;
         if (finalUnit !== ingredient.unit && convertQuantity(1, finalUnit, ingredient.unit) === null) {
@@ -186,7 +203,9 @@ router.post('/:id/ingredients', (req, res) => {
                 res.json({ id: this.lastID, recipe_id: recipeId, ingredient_id, quantity_used, unit: finalUnit });
             }
         );
-    });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // PUT ubah jumlah/satuan 1 baris bahan yang sudah ada di resep

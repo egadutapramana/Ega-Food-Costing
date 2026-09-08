@@ -194,6 +194,10 @@ async function initTables() {
         await seedCategoriesIfEmpty('ingredient_categories', ['Sayur & Buah', 'Protein', 'Bumbu & Rempah', 'Karbohidrat', 'Dairy & Telur', 'Minuman', 'Lainnya']);
         await seedCategoriesIfEmpty('recipe_categories', ['Masakan Indonesia', 'Western', 'Asian', 'Minuman', 'Dessert', 'Appetizer', 'Lainnya']);
 
+        // "Based product": bahan yang harganya diturunkan dari resep lain (misal Rica Rica Sauce, Mashed Potato)
+        await addColumnIfMissing('ingredients', 'source_recipe_id', 'INTEGER');
+        await addColumnIfMissing('ingredients', 'yield_quantity', 'REAL');
+
         console.log('Tables initialized');
     } catch (err) {
         console.error('Gagal inisialisasi tabel:', err);
