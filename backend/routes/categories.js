@@ -29,7 +29,8 @@ function buildCategoryRoutes(categoryTable, parentTable, supportsBasedProductFla
 
             const columns = supportsBasedProductFlag ? '(name, is_based_product_category)' : '(name)';
             const placeholders = supportsBasedProductFlag ? '(?, ?)' : '(?)';
-            const params = supportsBasedProductFlag ? [name, isBasedProductCategory] : [name];
+            // Kolom ini INTEGER (bukan BOOLEAN) di database lama yang sudah dimigrasi, jadi kirim 0/1, bukan true/false JS
+            const params = supportsBasedProductFlag ? [name, isBasedProductCategory ? 1 : 0] : [name];
 
             db.run(`INSERT INTO ${categoryTable} ${columns} VALUES ${placeholders}`, params, function (err) {
                 if (err) return res.status(500).json({ error: err.message });
@@ -55,7 +56,8 @@ function buildCategoryRoutes(categoryTable, parentTable, supportsBasedProductFla
                 if (existing) return res.status(400).json({ error: 'Kategori dengan nama ini sudah ada' });
 
                 const setClause = supportsBasedProductFlag ? 'name = ?, is_based_product_category = ?' : 'name = ?';
-                const params = supportsBasedProductFlag ? [name, isBasedProductCategory, id] : [name, id];
+                // Kolom ini INTEGER (bukan BOOLEAN) di database lama yang sudah dimigrasi, jadi kirim 0/1, bukan true/false JS
+                const params = supportsBasedProductFlag ? [name, isBasedProductCategory ? 1 : 0, id] : [name, id];
 
                 db.run(`UPDATE ${categoryTable} SET ${setClause} WHERE id = ?`, params, function (err) {
                     if (err) return res.status(500).json({ error: err.message });

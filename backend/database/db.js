@@ -175,7 +175,7 @@ const PG_SCHEMA = [
     `CREATE TABLE IF NOT EXISTS recipe_categories (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
-        is_based_product_category BOOLEAN NOT NULL DEFAULT FALSE
+        is_based_product_category INTEGER NOT NULL DEFAULT 0
     )`
 ];
 
