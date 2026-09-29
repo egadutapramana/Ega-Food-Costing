@@ -937,16 +937,20 @@ function renderRecipeCard(recipe) {
     ? `<div class="over-target-alert">⚠️ Melebihi target food cost (${recipe.target_food_cost_percent}%)</div>`
     : '';
 
+  const ingredientCount = recipe.ingredients.length;
+  const detailListId = `ri-detail-${recipe.id}`;
+
   div.innerHTML = `
     <h3>${recipe.name} (ID: ${recipe.id})</h3>
     ${recipe.category ? `<p class="target-info">🏷️ ${recipe.category}</p>` : ''}
     <p>Harga Jual: Rp${Number(recipe.selling_price).toLocaleString('id-ID')} | Porsi: ${recipe.portion_yield}</p>
-    <ul>${ingredientListHtml || '<li><em>Belum ada bahan</em></li>'}</ul>
     <p><strong>HPP Total:</strong> Rp${Number(recipe.hpp_total).toLocaleString('id-ID')}</p>
     <p><strong>HPP per Porsi:</strong> Rp${Number(recipe.hpp_per_portion).toLocaleString('id-ID')}</p>
     <p class="food-cost-badge" style="background-color: ${badgeColor};"><strong>Food Cost:</strong> ${badgeText}</p>
     <p class="target-info">Target Food Cost: ${recipe.target_food_cost_percent}%</p>
     ${overTargetHtml}
+    <button type="button" class="toggle-ri-detail-btn" data-target-id="${detailListId}">🔍 Lihat Rincian Bahan (${ingredientCount})</button>
+    <ul id="${detailListId}" class="ri-detail-list" hidden>${ingredientListHtml || '<li><em>Belum ada bahan</em></li>'}</ul>
     <div class="form-actions" style="margin-top: 10px;">
       <button class="edit-btn" data-id="${recipe.id}" data-type="recipe">✏️ Edit</button>
       <button class="delete-btn" data-id="${recipe.id}" data-type="recipe">🗑️ Hapus Resep</button>
@@ -1296,6 +1300,13 @@ document.addEventListener('click', (e) => {
   }
   if (e.target.classList.contains('ri-delete-btn')) {
     handleDeleteRecipeIngredient(e.target.dataset.recipeId, e.target.dataset.riId);
+  }
+  if (e.target.classList.contains('toggle-ri-detail-btn')) {
+    const list = document.getElementById(e.target.dataset.targetId);
+    if (!list) return;
+    list.hidden = !list.hidden;
+    const count = list.querySelectorAll('li').length;
+    e.target.textContent = list.hidden ? `🔍 Lihat Rincian Bahan (${count})` : '🔼 Sembunyikan Rincian Bahan';
   }
 });
 
