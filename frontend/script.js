@@ -113,13 +113,13 @@ const recCancelBtn = document.getElementById('recCancelBtn');
 const recTargetPercent = document.getElementById('recTargetPercent');
 const recCategorySelect = document.getElementById('recCategory');
 const recFilterCategory = document.getElementById('recFilterCategory');
-const recipeIngredientForm = document.getElementById('recipeIngredientForm');
 const recipeSelect = document.getElementById('recipeSelect');
-const ingredientSelect = document.getElementById('ingredientSelect');
-const usedUnitSelect = document.getElementById('usedUnitSelect');
-const riFormTitle = document.getElementById('riFormTitle');
-const riSubmitBtn = document.getElementById('riSubmitBtn');
-const riCancelBtn = document.getElementById('riCancelBtn');
+const multiIngredientForm = document.getElementById('multiIngredientForm');
+const multiIngredientRows = document.getElementById('multiIngredientRows');
+const addIngredientRowBtn = document.getElementById('addIngredientRowBtn');
+const editRiModalOverlay = document.getElementById('editRiModalOverlay');
+const editRiModalCloseBtn = document.getElementById('editRiModalCloseBtn');
+const editRiForm = document.getElementById('editRiForm');
 const recipeList = document.getElementById('recipeList');
 const recSearchInput = document.getElementById('recSearchInput');
 const recPaginationEl = document.getElementById('recPagination');
@@ -505,58 +505,90 @@ function populateSupplierDropdowns(suppliers) {
 }
 
 // ==========================
-// FUNGSI: Isi dropdown Satuan dengan opsi default (gr, ml, pcs) - dipakai sebelum bahan dipilih
-// ==========================
-function resetUsedUnitSelectDefault() {
-  usedUnitSelect.innerHTML = `
-    <option value="g">gr</option>
-    <option value="ml">ml</option>
-    <option value="pcs">pcs</option>
-  `;
-}
-
-// ==========================
-// FUNGSI: Dropdown bahan untuk form "Tambah Bahan ke Resep" (selalu daftar penuh)
+// FUNGSI: Dropdown bahan untuk form "Tambah Bahan ke Resep" (selalu daftar penuh, dipakai di tiap baris)
 // ==========================
 async function loadIngredientDropdown() {
   try {
     const res = await apiFetch(`${API_URL}/ingredients`);
-    const ingredients = await res.json();
-    allIngredientsCache = ingredients;
-
-    ingredientSelect.innerHTML = '<option value="">Pilih Bahan</option>';
-    ingredients.forEach(ing => {
-      const option = document.createElement('option');
-      option.value = ing.id;
-      option.textContent = `${ing.name} (${ing.unit})`;
-      ingredientSelect.appendChild(option);
-    });
-    resetUsedUnitSelectDefault();
+    allIngredientsCache = await res.json();
+    refreshAllIngredientRowOptions();
   } catch (err) {
     console.error('Gagal memuat daftar bahan:', err);
   }
 }
 
-// ==========================
-// EVENT: Saat bahan dipilih di form "Tambah Bahan ke Resep", isi pilihan satuan yang kompatibel
-// ==========================
-ingredientSelect.addEventListener('change', () => {
-  const ing = allIngredientsCache.find(i => i.id === Number(ingredientSelect.value));
-  usedUnitSelect.innerHTML = '';
-
-  if (!ing) {
-    resetUsedUnitSelectDefault();
-    return;
-  }
-
-  const compatibleUnits = getCompatibleUnits(ing.unit);
-  compatibleUnits.forEach(u => {
-    const option = document.createElement('option');
-    option.value = u;
-    option.textContent = u;
-    usedUnitSelect.appendChild(option);
+function buildIngredientOptionsHtml() {
+  let html = '<option value="">Pilih Bahan</option>';
+  allIngredientsCache.forEach(ing => {
+    html += `<option value="${ing.id}">${ing.name} (${ing.unit})</option>`;
   });
-  usedUnitSelect.value = normalizeUnit(ing.unit) || ing.unit;
+  return html;
+}
+
+function defaultUnitOptionsHtml() {
+  return `<option value="g">gr</option><option value="ml">ml</option><option value="pcs">pcs</option>`;
+}
+
+// Isi ulang pilihan bahan di semua baris yang sudah ada (dipanggil saat daftar bahan berubah),
+// tanpa menghapus baris/isian yang sedang dikerjakan user.
+function refreshAllIngredientRowOptions() {
+  multiIngredientRows.querySelectorAll('.mi-ingredient').forEach(select => {
+    const keepValue = select.value;
+    select.innerHTML = buildIngredientOptionsHtml();
+    select.value = keepValue;
+  });
+}
+
+function renumberIngredientRows() {
+  multiIngredientRows.querySelectorAll('tr').forEach((row, idx) => {
+    row.querySelector('.mi-row-number').textContent = idx + 1;
+  });
+}
+
+function createIngredientRow() {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td class="mi-row-number"></td>
+    <td><select class="mi-ingredient">${buildIngredientOptionsHtml()}</select></td>
+    <td><input type="number" class="mi-qty" placeholder="Jumlah" min="0.01" step="0.01"></td>
+    <td><select class="mi-unit">${defaultUnitOptionsHtml()}</select></td>
+    <td><button type="button" class="mi-remove-row" title="Hapus baris ini">🗑️</button></td>
+  `;
+  multiIngredientRows.appendChild(tr);
+  renumberIngredientRows();
+
+  const ingredientSelectEl = tr.querySelector('.mi-ingredient');
+  const unitSelectEl = tr.querySelector('.mi-unit');
+  ingredientSelectEl.addEventListener('change', () => {
+    const ing = allIngredientsCache.find(i => i.id === Number(ingredientSelectEl.value));
+    if (!ing) {
+      unitSelectEl.innerHTML = defaultUnitOptionsHtml();
+      return;
+    }
+    const compatibleUnits = getCompatibleUnits(ing.unit);
+    unitSelectEl.innerHTML = compatibleUnits.map(u => `<option value="${u}">${u}</option>`).join('');
+    unitSelectEl.value = normalizeUnit(ing.unit) || ing.unit;
+  });
+
+  return tr;
+}
+
+function resetMultiIngredientRows(count = 3) {
+  multiIngredientRows.innerHTML = '';
+  for (let i = 0; i < count; i++) createIngredientRow();
+}
+
+addIngredientRowBtn.addEventListener('click', () => createIngredientRow());
+
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('mi-remove-row')) {
+    if (multiIngredientRows.children.length <= 1) {
+      showToast('Minimal harus ada 1 baris bahan');
+      return;
+    }
+    e.target.closest('tr').remove();
+    renumberIngredientRows();
+  }
 });
 
 // ==========================
@@ -863,7 +895,7 @@ function renderRecipeCard(recipe) {
     return `
       <li>
         <span>${ing.name} — ${ing.quantity_used} ${displayUnit} (Rp${Number(ing.price_per_unit).toLocaleString('id-ID')}/${ing.unit})</span>
-        <button type="button" class="ri-edit-btn" data-recipe-id="${recipe.id}" data-ri-id="${ing.recipe_ingredient_id}" data-ingredient-id="${ing.ingredient_id}" data-qty="${ing.quantity_used}" data-unit="${displayUnit}" title="Edit bahan ini">✏️</button>
+        <button type="button" class="ri-edit-btn" data-recipe-id="${recipe.id}" data-ri-id="${ing.recipe_ingredient_id}" data-ingredient-id="${ing.ingredient_id}" data-qty="${ing.quantity_used}" data-unit="${displayUnit}" data-name="${ing.name}" title="Edit bahan ini">✏️</button>
         <button type="button" class="ri-delete-btn" data-recipe-id="${recipe.id}" data-ri-id="${ing.recipe_ingredient_id}" title="Hapus bahan ini dari resep">🗑️</button>
       </li>
     `;
@@ -1142,35 +1174,59 @@ recipeForm.addEventListener('submit', async (e) => {
 });
 
 // ==========================
-// EVENT: Submit Form Tambah Bahan ke Recipe
+// MODAL: Edit 1 bahan yang sudah ada di resep (dipicu tombol ✏️ di kartu resep)
 // ==========================
-// ==========================
-// EDIT MODE: Bahan di dalam resep (recipe_ingredients)
-// ==========================
-function startEditRecipeIngredient(recipeId, riId, ingredientId, qty, unit) {
-  recipeSelect.value = recipeId;
-  ingredientSelect.value = ingredientId;
-  ingredientSelect.dispatchEvent(new Event('change')); // isi ulang pilihan Satuan yang kompatibel
-  usedUnitSelect.value = normalizeUnit(unit) || unit;
-  document.getElementById('qtyUsed').value = qty;
-  document.getElementById('riEditId').value = riId;
+function openEditRiModal(recipeId, riId, ingredientId, qty, unit, ingredientName) {
+  document.getElementById('editRiRecipeId').value = recipeId;
+  document.getElementById('editRiId').value = riId;
+  document.getElementById('editRiIngredientName').textContent = ingredientName;
+  document.getElementById('editRiQty').value = qty;
 
-  riFormTitle.textContent = 'Edit Bahan di Resep';
-  riSubmitBtn.textContent = 'Update Bahan';
-  riCancelBtn.style.display = 'inline-block';
-  recipeIngredientForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const ing = allIngredientsCache.find(i => i.id === Number(ingredientId));
+  const unitSelectEl = document.getElementById('editRiUnit');
+  unitSelectEl.innerHTML = ing
+    ? getCompatibleUnits(ing.unit).map(u => `<option value="${u}">${u}</option>`).join('')
+    : defaultUnitOptionsHtml();
+  unitSelectEl.value = normalizeUnit(unit) || unit;
+
+  editRiModalOverlay.style.display = 'flex';
 }
 
-function cancelEditRecipeIngredient() {
-  recipeIngredientForm.reset();
-  document.getElementById('riEditId').value = '';
-  resetUsedUnitSelectDefault();
-  riFormTitle.textContent = 'Tambah Bahan ke Resep';
-  riSubmitBtn.textContent = 'Tambah ke Resep';
-  riCancelBtn.style.display = 'none';
-}
+editRiModalCloseBtn.addEventListener('click', () => { editRiModalOverlay.style.display = 'none'; });
+editRiModalOverlay.addEventListener('click', (e) => {
+  if (e.target === editRiModalOverlay) editRiModalOverlay.style.display = 'none';
+});
 
-riCancelBtn.addEventListener('click', cancelEditRecipeIngredient);
+editRiForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const recipeId = document.getElementById('editRiRecipeId').value;
+  const riId = document.getElementById('editRiId').value;
+  const quantity_used = document.getElementById('editRiQty').value;
+  const unit = document.getElementById('editRiUnit').value;
+
+  if (quantity_used === '' || isNaN(Number(quantity_used)) || Number(quantity_used) <= 0) {
+    showToast('Jumlah dipakai harus berupa angka lebih dari 0');
+    return;
+  }
+
+  try {
+    const res = await apiFetch(`${API_URL}/recipes/${recipeId}/ingredients/${riId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantity_used, unit })
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Gagal mengupdate bahan di resep');
+
+    editRiModalOverlay.style.display = 'none';
+    loadRecipes();
+    loadDashboard();
+    showToast('Bahan di resep berhasil diupdate', 'success');
+  } catch (err) {
+    showToast('Terjadi kesalahan: ' + err.message);
+  }
+});
 
 async function handleDeleteRecipeIngredient(recipeId, riId) {
   const confirmDelete = confirm('Yakin ingin menghapus bahan ini dari resep?');
@@ -1192,67 +1248,79 @@ async function handleDeleteRecipeIngredient(recipeId, riId) {
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('ri-edit-btn')) {
     const d = e.target.dataset;
-    startEditRecipeIngredient(d.recipeId, d.riId, d.ingredientId, d.qty, d.unit);
+    openEditRiModal(d.recipeId, d.riId, d.ingredientId, d.qty, d.unit, d.name);
   }
   if (e.target.classList.contains('ri-delete-btn')) {
     handleDeleteRecipeIngredient(e.target.dataset.recipeId, e.target.dataset.riId);
   }
 });
 
-recipeIngredientForm.addEventListener('submit', async (e) => {
+// ==========================
+// EVENT: Simpan semua baris bahan sekaligus ke resep yang dipilih
+// ==========================
+multiIngredientForm.addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const recipeId = recipeSelect.value;
-  const ingredient_id = ingredientSelect.value;
-  const quantity_used = document.getElementById('qtyUsed').value;
-  const unit = usedUnitSelect.value;
-  const riEditId = document.getElementById('riEditId').value;
-
   if (!recipeId) {
     showToast('Pilih resep terlebih dahulu!');
     return;
   }
-  if (!ingredient_id) {
-    showToast('Pilih bahan terlebih dahulu!');
-    return;
-  }
-  if (quantity_used === '' || isNaN(Number(quantity_used)) || Number(quantity_used) <= 0) {
-    showToast('Jumlah dipakai harus berupa angka lebih dari 0');
-    return;
-  }
 
-  const isEdit = Boolean(riEditId);
-  const url = isEdit
-    ? `${API_URL}/recipes/${recipeId}/ingredients/${riEditId}`
-    : `${API_URL}/recipes/${recipeId}/ingredients`;
-  const method = isEdit ? 'PUT' : 'POST';
-  const body = isEdit
-    ? { quantity_used, unit }
-    : { ingredient_id, quantity_used, unit };
+  const rows = Array.from(multiIngredientRows.querySelectorAll('tr'));
+  const filledRows = [];
+  for (const row of rows) {
+    const ingredientId = row.querySelector('.mi-ingredient').value;
+    const qty = row.querySelector('.mi-qty').value;
+    const unit = row.querySelector('.mi-unit').value;
 
-  try {
-    const res = await apiFetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
+    if (!ingredientId && qty === '') continue; // baris kosong, lewati saja
 
-    const result = await res.json();
-    if (!res.ok) throw new Error(result.error || `Gagal ${isEdit ? 'mengupdate' : 'menambah'} bahan di resep`);
-
-    if (isEdit) {
-      cancelEditRecipeIngredient();
-    } else {
-      // Sengaja tidak reset recipeSelect supaya bisa langsung tambah bahan berikutnya ke resep yang sama
-      ingredientSelect.value = '';
-      document.getElementById('qtyUsed').value = '';
-      resetUsedUnitSelectDefault();
+    if (!ingredientId) {
+      showToast('Ada baris yang belum dipilih bahannya');
+      return;
     }
-    loadRecipes();
-    loadDashboard();
-    showToast(isEdit ? 'Bahan di resep berhasil diupdate' : 'Bahan berhasil ditambahkan ke resep', 'success');
-  } catch (err) {
-    showToast('Terjadi kesalahan: ' + err.message);
+    if (qty === '' || isNaN(Number(qty)) || Number(qty) <= 0) {
+      showToast('Jumlah dipakai harus berupa angka lebih dari 0 di semua baris yang diisi');
+      return;
+    }
+    filledRows.push({ ingredient_id: ingredientId, quantity_used: qty, unit });
+  }
+
+  if (filledRows.length === 0) {
+    showToast('Isi minimal 1 baris bahan');
+    return;
+  }
+
+  let successCount = 0;
+  const errors = [];
+  for (const row of filledRows) {
+    try {
+      const res = await apiFetch(`${API_URL}/recipes/${recipeId}/ingredients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(row)
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal menambah bahan');
+      successCount++;
+    } catch (err) {
+      const ing = allIngredientsCache.find(i => i.id === Number(row.ingredient_id));
+      errors.push(`${ing ? ing.name : 'Bahan'}: ${err.message}`);
+    }
+  }
+
+  loadRecipes();
+  loadDashboard();
+
+  if (errors.length === 0) {
+    // Sengaja tidak reset recipeSelect supaya bisa langsung isi baris baru untuk resep yang sama
+    resetMultiIngredientRows();
+    showToast(`${successCount} bahan berhasil ditambahkan ke resep`, 'success');
+  } else if (successCount > 0) {
+    showToast(`${successCount} bahan berhasil, ${errors.length} gagal — ${errors.join('; ')}`);
+  } else {
+    showToast(`Gagal menambahkan bahan — ${errors.join('; ')}`);
   }
 });
 
@@ -1614,6 +1682,7 @@ async function startApp() {
   hideLoginOverlay();
   renderUserBar();
   switchTab('dashboard');
+  resetMultiIngredientRows();
 
   await loadSuppliers(); // harus selesai dulu supaya nama supplier bisa ditampilkan di tabel bahan
   await Promise.all([

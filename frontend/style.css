@@ -82,6 +82,51 @@ input, select, button {
   margin-left: 6px;
 }
 
+/* ========================== */
+/* Tambah Bahan ke Resep - multi baris */
+/* ========================== */
+
+.multi-ing-hint {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  margin: 12px 0;
+}
+
+#multiIngredientTable {
+  min-width: 560px;
+}
+
+#multiIngredientTable th {
+  font-size: 13px;
+  color: #2e7d32;
+}
+
+#multiIngredientTable td {
+  vertical-align: middle;
+  padding: 6px 4px;
+}
+
+#multiIngredientTable select,
+#multiIngredientTable input {
+  width: 100%;
+  min-width: 90px;
+}
+
+.mi-remove-row {
+  background-color: #c62828;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.mi-remove-row:hover {
+  background-color: #8e0000;
+}
+
 button {
   background-color: #2e7d32;
   color: white;

@@ -228,27 +228,58 @@
       </section>
 
       <section class="card">
-        <h2 id="riFormTitle">Tambah Bahan ke Resep</h2>
-        <form id="recipeIngredientForm">
-          <input type="hidden" id="riEditId" value="">
+        <h2>Tambah Bahan ke Resep</h2>
+        <p class="multi-ing-hint">Pilih resep satu kali, lalu isi semua bahan sekaligus dan simpan sekali.</p>
+        <form id="multiIngredientForm">
           <select id="recipeSelect" required>
             <option value="">Pilih Resep</option>
           </select>
-          <select id="ingredientSelect" required>
-            <option value="">Pilih Bahan</option>
-          </select>
-          <input type="number" id="qtyUsed" placeholder="Jumlah dipakai" min="0.01" step="0.01" required>
-          <select id="usedUnitSelect" required>
-            <option value="g">gr</option>
-            <option value="ml">ml</option>
-            <option value="pcs">pcs</option>
-          </select>
+
+          <div class="table-scroll">
+            <table id="multiIngredientTable">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Bahan</th>
+                  <th>Jumlah dipakai</th>
+                  <th>Satuan</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="multiIngredientRows"></tbody>
+            </table>
+          </div>
+
           <div class="form-actions">
-            <button type="submit" id="riSubmitBtn">Tambah ke Resep</button>
-            <button type="button" id="riCancelBtn" class="cancel-btn" style="display:none;">Batal Edit</button>
+            <button type="button" id="addIngredientRowBtn" class="cancel-btn">+ Tambah baris bahan</button>
+            <button type="submit" id="saveMultiIngredientsBtn">Simpan Semua Bahan</button>
           </div>
         </form>
       </section>
+
+      <!-- Modal: Edit 1 bahan yang sudah ada di resep -->
+      <div id="editRiModalOverlay" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>✏️ Edit Bahan di Resep</h3>
+            <button type="button" id="editRiModalCloseBtn" class="modal-close">&times;</button>
+          </div>
+          <form id="editRiForm">
+            <input type="hidden" id="editRiId" value="">
+            <input type="hidden" id="editRiRecipeId" value="">
+            <p id="editRiIngredientName" style="font-weight:bold; margin-bottom: 8px;"></p>
+            <input type="number" id="editRiQty" placeholder="Jumlah dipakai" min="0.01" step="0.01" required>
+            <select id="editRiUnit" required>
+              <option value="g">gr</option>
+              <option value="ml">ml</option>
+              <option value="pcs">pcs</option>
+            </select>
+            <div class="form-actions">
+              <button type="submit">Update Bahan</button>
+            </div>
+          </form>
+        </div>
+      </div>
 
       <section class="card">
         <h2>Daftar Resep & HPP</h2>
