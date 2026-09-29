@@ -125,7 +125,6 @@ const editRiModalCloseBtn = document.getElementById('editRiModalCloseBtn');
 const editRiForm = document.getElementById('editRiForm');
 const recipeList = document.getElementById('recipeList');
 const recSearchInput = document.getElementById('recSearchInput');
-const recPaginationEl = document.getElementById('recPagination');
 const menuSearchInput = document.getElementById('menuSearchInput');
 const menuFilterCategory = document.getElementById('menuFilterCategory');
 const menuTableBody = document.querySelector('#menuTable tbody');
@@ -170,11 +169,10 @@ const ingLimit = 10;
 
 let recSearchTerm = '';
 let recFilterCategoryValue = '';
+let recipeDetailCache = [];
 let menuListCache = [];
 let menuSearchTerm = '';
 let menuFilterCategoryValue = '';
-let recCurrentPage = 1;
-const recLimit = 5;
 
 // ==========================
 // HELPER: Debounce (menunda eksekusi supaya tidak fetch tiap ketikan)
@@ -777,32 +775,86 @@ menuFilterCategory.addEventListener('change', (e) => {
 });
 
 // ==========================
-// FUNGSI: Ambil & Tampilkan Recipes (kartu HPP, dengan search/pagination)
+// FUNGSI: Ambil semua Recipes + HPP-nya, lalu tampilkan dikelompokkan per kategori
 // ==========================
 async function loadRecipes() {
   try {
-    const params = new URLSearchParams({ page: recCurrentPage, limit: recLimit });
-    if (recSearchTerm) params.set('search', recSearchTerm);
-    if (recFilterCategoryValue) params.set('category', recFilterCategoryValue);
+    const res = await apiFetch(`${API_URL}/recipes`);
+    const recipes = await res.json();
 
-    const res = await apiFetch(`${API_URL}/recipes?${params.toString()}`);
-    const result = await res.json();
+    recipeDetailCache = await Promise.all(
+      recipes.map(async (rec) => {
+        const detailRes = await apiFetch(`${API_URL}/recipes/${rec.id}`);
+        return detailRes.json();
+      })
+    );
 
-    recipeList.innerHTML = '';
-    for (const rec of result.data) {
-      const detailRes = await apiFetch(`${API_URL}/recipes/${rec.id}`);
-      const detail = await detailRes.json();
-      renderRecipeCard(detail);
-    }
-
-    renderPagination(recPaginationEl, result, (page) => {
-      recCurrentPage = page;
-      loadRecipes();
-    });
+    renderGroupedRecipeList();
   } catch (err) {
     console.error('Gagal memuat recipes:', err);
   }
 }
+
+// Bikin id HTML yang aman dari nama kategori (dipakai untuk toggle buka/tutup per grup)
+function slugifyForId(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'x';
+}
+
+function renderGroupedRecipeList() {
+  const term = recSearchTerm.trim().toLowerCase();
+  const filtered = recipeDetailCache.filter((rec) => {
+    const matchesSearch = !term || rec.name.toLowerCase().includes(term);
+    const matchesCategory = !recFilterCategoryValue || rec.category === recFilterCategoryValue;
+    return matchesSearch && matchesCategory;
+  });
+
+  recipeList.innerHTML = '';
+
+  if (filtered.length === 0) {
+    recipeList.innerHTML = '<p><em>Tidak ada resep yang cocok.</em></p>';
+    return;
+  }
+
+  const UNCATEGORIZED_LABEL = 'Tanpa Kategori';
+  const groups = new Map();
+  filtered.forEach((rec) => {
+    const key = rec.category || UNCATEGORIZED_LABEL;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(rec);
+  });
+
+  const orderedCategoryNames = recCategoriesCache.map((c) => c.name).filter((name) => groups.has(name));
+  groups.forEach((_, key) => {
+    if (!orderedCategoryNames.includes(key)) orderedCategoryNames.push(key);
+  });
+
+  orderedCategoryNames.forEach((categoryName) => {
+    const recipesInGroup = groups.get(categoryName);
+    const bodyId = `recipe-group-body-${slugifyForId(categoryName)}`;
+
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'recipe-category-group';
+    groupDiv.innerHTML = `
+      <button type="button" class="recipe-group-header" data-target-id="${bodyId}">
+        <span class="group-toggle-icon">▾</span> 🏷️ ${categoryName} (${recipesInGroup.length})
+      </button>
+      <div id="${bodyId}" class="recipe-group-body"></div>
+    `;
+    recipeList.appendChild(groupDiv);
+
+    const bodyContainer = groupDiv.querySelector('.recipe-group-body');
+    recipesInGroup.forEach((rec) => renderRecipeCard(rec, bodyContainer));
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const header = e.target.closest('.recipe-group-header');
+  if (!header) return;
+  const body = document.getElementById(header.dataset.targetId);
+  if (!body) return;
+  body.hidden = !body.hidden;
+  header.querySelector('.group-toggle-icon').textContent = body.hidden ? '▸' : '▾';
+});
 
 // ==========================
 // FUNGSI: Download file export (Excel/PDF) dengan Authorization header
@@ -914,7 +966,7 @@ function getBadgeColor(percentage) {
 // ==========================
 // FUNGSI: Render 1 Card Detail Recipe
 // ==========================
-function renderRecipeCard(recipe) {
+function renderRecipeCard(recipe, container = recipeList) {
   const div = document.createElement('div');
   div.className = 'recipe-item';
 
@@ -957,7 +1009,7 @@ function renderRecipeCard(recipe) {
     </div>
   `;
 
-  recipeList.appendChild(div);
+  container.appendChild(div);
 }
 
 // ==========================
@@ -1473,14 +1525,12 @@ ingFilterCategory.addEventListener('change', (e) => {
 
 recSearchInput.addEventListener('input', debounce((e) => {
   recSearchTerm = e.target.value;
-  recCurrentPage = 1;
-  loadRecipes();
+  renderGroupedRecipeList();
 }, 300));
 
 recFilterCategory.addEventListener('change', (e) => {
   recFilterCategoryValue = e.target.value;
-  recCurrentPage = 1;
-  loadRecipes();
+  renderGroupedRecipeList();
 });
 
 supSearchInputEl.addEventListener('input', debounce((e) => {

@@ -414,6 +414,49 @@ tr:hover {
 }
 
 /* ========================== */
+/* Daftar Resep - dikelompokkan per kategori */
+/* ========================== */
+
+.recipe-category-group {
+  margin-bottom: 20px;
+}
+
+.recipe-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  background-color: #eef5ef;
+  border: 1px solid #cfe3d1;
+  color: #2e7d32;
+  font-size: 15px;
+  font-weight: bold;
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+.recipe-group-header:hover {
+  background-color: #e0efe1;
+}
+
+.group-toggle-icon {
+  display: inline-block;
+  width: 12px;
+}
+
+.recipe-group-body {
+  display: grid;
+  gap: 12px;
+}
+
+.recipe-group-body[hidden] {
+  display: none;
+}
+
+/* ========================== */
 /* Dashboard ringkasan */
 /* ========================== */
 
