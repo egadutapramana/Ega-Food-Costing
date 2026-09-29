@@ -6,7 +6,9 @@ const { isNonEmptyString } = require('../utils/validate');
 
 // Bikin sub-router CRUD kategori untuk satu jenis (bahan atau resep).
 // categoryTable: tabel kategori itu sendiri. parentTable: tabel yang menyimpan nama kategori (ingredients/recipes).
-function buildCategoryRoutes(categoryTable, parentTable) {
+// supportsBasedProductFlag: true khusus untuk recipe_categories, supaya kategori bisa ditandai
+// "based product" (resep berkategori ini otomatis dibuatkan/disinkronkan bahan bakunya sendiri).
+function buildCategoryRoutes(categoryTable, parentTable, supportsBasedProductFlag = false) {
     const sub = express.Router();
 
     sub.get('/', (req, res) => {
@@ -19,23 +21,30 @@ function buildCategoryRoutes(categoryTable, parentTable) {
     sub.post('/', requireAdmin, (req, res) => {
         const name = (req.body.name || '').trim();
         if (!isNonEmptyString(name)) return res.status(400).json({ error: 'Nama kategori tidak boleh kosong' });
+        const isBasedProductCategory = supportsBasedProductFlag ? Boolean(req.body.is_based_product_category) : false;
 
         db.get(`SELECT id FROM ${categoryTable} WHERE LOWER(name) = LOWER(?)`, [name], (err, existing) => {
             if (err) return res.status(500).json({ error: err.message });
             if (existing) return res.status(400).json({ error: 'Kategori dengan nama ini sudah ada' });
 
-            db.run(`INSERT INTO ${categoryTable} (name) VALUES (?)`, [name], function (err) {
+            const columns = supportsBasedProductFlag ? '(name, is_based_product_category)' : '(name)';
+            const placeholders = supportsBasedProductFlag ? '(?, ?)' : '(?)';
+            const params = supportsBasedProductFlag ? [name, isBasedProductCategory] : [name];
+
+            db.run(`INSERT INTO ${categoryTable} ${columns} VALUES ${placeholders}`, params, function (err) {
                 if (err) return res.status(500).json({ error: err.message });
-                res.json({ id: this.lastID, name });
+                res.json({ id: this.lastID, name, ...(supportsBasedProductFlag ? { is_based_product_category: isBasedProductCategory } : {}) });
             });
         });
     });
 
-    // Ganti nama kategori. Semua data (ingredient/recipe) yang masih memakai nama lama ikut diupdate otomatis.
+    // Ganti nama kategori (dan, kalau relevan, status "based product"-nya).
+    // Semua data (ingredient/recipe) yang masih memakai nama lama ikut diupdate otomatis.
     sub.put('/:id', requireAdmin, (req, res) => {
         const id = req.params.id;
         const name = (req.body.name || '').trim();
         if (!isNonEmptyString(name)) return res.status(400).json({ error: 'Nama kategori tidak boleh kosong' });
+        const isBasedProductCategory = supportsBasedProductFlag ? Boolean(req.body.is_based_product_category) : false;
 
         db.get(`SELECT * FROM ${categoryTable} WHERE id = ?`, [id], (err, current) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -45,12 +54,15 @@ function buildCategoryRoutes(categoryTable, parentTable) {
                 if (err) return res.status(500).json({ error: err.message });
                 if (existing) return res.status(400).json({ error: 'Kategori dengan nama ini sudah ada' });
 
-                db.run(`UPDATE ${categoryTable} SET name = ? WHERE id = ?`, [name, id], function (err) {
+                const setClause = supportsBasedProductFlag ? 'name = ?, is_based_product_category = ?' : 'name = ?';
+                const params = supportsBasedProductFlag ? [name, isBasedProductCategory, id] : [name, id];
+
+                db.run(`UPDATE ${categoryTable} SET ${setClause} WHERE id = ?`, params, function (err) {
                     if (err) return res.status(500).json({ error: err.message });
 
                     db.run(`UPDATE ${parentTable} SET category = ? WHERE category = ?`, [name, current.name], (err) => {
                         if (err) return res.status(500).json({ error: err.message });
-                        res.json({ id: Number(id), name });
+                        res.json({ id: Number(id), name, ...(supportsBasedProductFlag ? { is_based_product_category: isBasedProductCategory } : {}) });
                     });
                 });
             });
@@ -84,6 +96,6 @@ function buildCategoryRoutes(categoryTable, parentTable) {
 }
 
 router.use('/ingredients', buildCategoryRoutes('ingredient_categories', 'ingredients'));
-router.use('/recipes', buildCategoryRoutes('recipe_categories', 'recipes'));
+router.use('/recipes', buildCategoryRoutes('recipe_categories', 'recipes', true));
 
 module.exports = router;

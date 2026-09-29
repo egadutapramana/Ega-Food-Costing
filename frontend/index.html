@@ -209,6 +209,17 @@
           <select id="recCategory">
             <option value="">Tanpa kategori</option>
           </select>
+
+          <div id="recYieldFields" style="display:none;">
+            <p class="based-product-hint">🔗 Kategori ini otomatis menjadikan resep ini bahan olahan yang bisa dipakai di resep lain. Isi berapa banyak hasil resep ini.</p>
+            <input type="number" id="recYieldQuantity" placeholder="Jumlah hasil resep (misal 1000)" min="0.01" step="0.01">
+            <select id="recYieldUnit">
+              <option value="g">gr</option>
+              <option value="ml">ml</option>
+              <option value="pcs">pcs</option>
+            </select>
+          </div>
+
           <div class="form-actions">
             <button type="submit" id="recSubmitBtn">Tambah Resep</button>
             <button type="button" id="recCancelBtn" class="cancel-btn" style="display:none;">Batal Edit</button>
@@ -223,6 +234,10 @@
         </table>
         <form id="recCategoryAddForm" class="form-actions" style="margin-top: 12px;">
           <input type="text" id="newRecCategoryName" placeholder="Nama kategori baru" required>
+          <label class="checkbox-label">
+            <input type="checkbox" id="newRecCategoryIsBasedProduct">
+            🔗 Based Product
+          </label>
           <button type="submit">Tambah Kategori</button>
         </form>
       </section>

@@ -113,6 +113,9 @@ const recCancelBtn = document.getElementById('recCancelBtn');
 const recTargetPercent = document.getElementById('recTargetPercent');
 const recCategorySelect = document.getElementById('recCategory');
 const recFilterCategory = document.getElementById('recFilterCategory');
+const recYieldFields = document.getElementById('recYieldFields');
+const recYieldQuantityInput = document.getElementById('recYieldQuantity');
+const recYieldUnitSelect = document.getElementById('recYieldUnit');
 const recipeSelect = document.getElementById('recipeSelect');
 const multiIngredientForm = document.getElementById('multiIngredientForm');
 const multiIngredientRows = document.getElementById('multiIngredientRows');
@@ -264,10 +267,12 @@ function populateSelectWithCategories(selectEl, categories, placeholderText) {
 function renderCategoryManagerTable(tableId, categories, type) {
   const tbody = document.querySelector(`#${tableId} tbody`);
   tbody.innerHTML = '';
+  const supportsBasedProduct = type === 'recipe';
   categories.forEach(cat => {
     const row = document.createElement('tr');
     row.innerHTML = `
       <td><input type="text" value="${cat.name}" class="cat-name-input"></td>
+      ${supportsBasedProduct ? `<td><label class="checkbox-label"><input type="checkbox" class="cat-based-product-checkbox" ${cat.is_based_product_category ? 'checked' : ''}> 🔗 Based Product</label></td>` : ''}
       <td class="category-row-actions">
         <button type="button" class="cat-save-btn" data-type="${type}" data-id="${cat.id}">💾 Simpan</button>
         <button type="button" class="cat-delete-btn" data-type="${type}" data-id="${cat.id}">🗑️ Hapus</button>
@@ -297,18 +302,21 @@ async function loadRecipeCategories() {
     populateSelectWithCategories(recFilterCategory, recCategoriesCache, 'Semua Kategori');
     populateSelectWithCategories(menuFilterCategory, recCategoriesCache, 'Semua Kategori');
     renderCategoryManagerTable('recCategoryTable', recCategoriesCache, 'recipe');
+    toggleRecipeYieldFields();
   } catch (err) {
     console.error('Gagal memuat kategori resep:', err);
   }
 }
 
-async function saveCategoryRename(type, id, newName) {
+async function saveCategoryRename(type, id, newName, isBasedProductCategory) {
   const endpoint = type === 'ingredient' ? 'ingredients' : 'recipes';
   try {
+    const body = { name: newName };
+    if (typeof isBasedProductCategory === 'boolean') body.is_based_product_category = isBasedProductCategory;
     const res = await apiFetch(`${API_URL}/categories/${endpoint}/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName })
+      body: JSON.stringify(body)
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.error || 'Gagal mengubah nama kategori');
@@ -349,13 +357,15 @@ async function deleteCategory(type, id) {
 
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('cat-save-btn')) {
-    const input = e.target.closest('tr').querySelector('.cat-name-input');
+    const row = e.target.closest('tr');
+    const input = row.querySelector('.cat-name-input');
     const newName = input.value.trim();
     if (!newName) {
       showToast('Nama kategori tidak boleh kosong');
       return;
     }
-    saveCategoryRename(e.target.dataset.type, e.target.dataset.id, newName);
+    const basedProductCheckbox = row.querySelector('.cat-based-product-checkbox');
+    saveCategoryRename(e.target.dataset.type, e.target.dataset.id, newName, basedProductCheckbox ? basedProductCheckbox.checked : undefined);
   }
   if (e.target.classList.contains('cat-delete-btn')) {
     deleteCategory(e.target.dataset.type, e.target.dataset.id);
@@ -388,6 +398,7 @@ document.getElementById('ingCategoryAddForm').addEventListener('submit', async (
 document.getElementById('recCategoryAddForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const nameInput = document.getElementById('newRecCategoryName');
+  const isBasedProductInput = document.getElementById('newRecCategoryIsBasedProduct');
   const name = nameInput.value.trim();
   if (!name) return;
 
@@ -395,12 +406,13 @@ document.getElementById('recCategoryAddForm').addEventListener('submit', async (
     const res = await apiFetch(`${API_URL}/categories/recipes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, is_based_product_category: isBasedProductInput.checked })
     });
     const result = await res.json();
     if (!res.ok) throw new Error(result.error || 'Gagal menambah kategori');
 
     nameInput.value = '';
+    isBasedProductInput.checked = false;
     loadRecipeCategories();
     showToast(`Kategori "${result.name}" ditambahkan`, 'success');
   } catch (err) {
@@ -711,6 +723,22 @@ ingIsBasedProduct.addEventListener('change', (e) => {
   toggleBasedProductFields(e.target.checked);
 });
 
+// ==========================
+// FUNGSI: Resep berkategori "Based Product" - tampilkan/sembunyikan field yield
+// ==========================
+function isSelectedRecipeCategoryBasedProduct() {
+  const cat = recCategoriesCache.find(c => c.name === recCategorySelect.value);
+  return Boolean(cat && cat.is_based_product_category);
+}
+
+function toggleRecipeYieldFields() {
+  const show = isSelectedRecipeCategoryBasedProduct();
+  recYieldFields.style.display = show ? '' : 'none';
+  recYieldQuantityInput.required = show;
+}
+
+recCategorySelect.addEventListener('change', toggleRecipeYieldFields);
+
 function applyMenuFilter() {
   const term = menuSearchTerm.trim().toLowerCase();
   const filtered = menuListCache.filter(rec => {
@@ -998,6 +1026,9 @@ function startEditRecipe(rec) {
   document.getElementById('recPortion').value = rec.portion_yield;
   recTargetPercent.value = rec.target_food_cost_percent || '';
   recCategorySelect.value = rec.category || '';
+  toggleRecipeYieldFields();
+  recYieldQuantityInput.value = rec.yield_quantity || '';
+  if (rec.yield_unit) recYieldUnitSelect.value = rec.yield_unit;
   recFormTitle.textContent = 'Edit Resep';
   recSubmitBtn.textContent = 'Update Resep';
   recCancelBtn.style.display = 'inline-block';
@@ -1007,6 +1038,7 @@ function startEditRecipe(rec) {
 function cancelEditRecipe() {
   recipeForm.reset();
   document.getElementById('recId').value = '';
+  toggleRecipeYieldFields();
   recFormTitle.textContent = 'Tambah Resep';
   recSubmitBtn.textContent = 'Tambah Resep';
   recCancelBtn.style.display = 'none';
@@ -1144,6 +1176,14 @@ recipeForm.addEventListener('submit', async (e) => {
     return;
   }
 
+  const isBasedProductCategory = isSelectedRecipeCategoryBasedProduct();
+  const yield_quantity = recYieldQuantityInput.value;
+  const yield_unit = recYieldUnitSelect.value;
+  if (isBasedProductCategory && (yield_quantity === '' || isNaN(Number(yield_quantity)) || Number(yield_quantity) <= 0)) {
+    showToast('Jumlah hasil (yield) harus berupa angka lebih dari 0');
+    return;
+  }
+
   const isEdit = Boolean(id);
   const url = isEdit ? `${API_URL}/recipes/${id}` : `${API_URL}/recipes`;
   const method = isEdit ? 'PUT' : 'POST';
@@ -1157,7 +1197,9 @@ recipeForm.addEventListener('submit', async (e) => {
         selling_price,
         portion_yield: portion_yield || 1,
         target_food_cost_percent: targetPercentValue || undefined,
-        category: recCategorySelect.value || null
+        category: recCategorySelect.value || null,
+        yield_quantity: isBasedProductCategory ? yield_quantity : null,
+        yield_unit: isBasedProductCategory ? yield_unit : null
       })
     });
     const result = await res.json();
@@ -1168,6 +1210,8 @@ recipeForm.addEventListener('submit', async (e) => {
     loadRecipeDropdown();
     loadMenuList();
     loadDashboard();
+    loadIngredients();
+    loadIngredientDropdown();
   } catch (err) {
     showToast('Terjadi kesalahan: ' + err.message);
   }

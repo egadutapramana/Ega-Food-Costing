@@ -120,7 +120,8 @@ const SQLITE_SCHEMA = [
     )`,
     `CREATE TABLE IF NOT EXISTS recipe_categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE
+        name TEXT NOT NULL UNIQUE,
+        is_based_product_category INTEGER NOT NULL DEFAULT 0
     )`
 ];
 
@@ -173,7 +174,8 @@ const PG_SCHEMA = [
     )`,
     `CREATE TABLE IF NOT EXISTS recipe_categories (
         id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE
+        name TEXT NOT NULL UNIQUE,
+        is_based_product_category BOOLEAN NOT NULL DEFAULT FALSE
     )`
 ];
 
@@ -197,6 +199,12 @@ async function initTables() {
         // "Based product": bahan yang harganya diturunkan dari resep lain (misal Rica Rica Sauce, Mashed Potato)
         await addColumnIfMissing('ingredients', 'source_recipe_id', 'INTEGER');
         await addColumnIfMissing('ingredients', 'yield_quantity', 'REAL');
+
+        // Kategori resep yang ditandai "based product": resep dengan kategori ini otomatis
+        // dibuatkan/disinkronkan bahan bakunya sendiri (lihat backend/routes/recipes.js)
+        await addColumnIfMissing('recipe_categories', 'is_based_product_category', 'INTEGER DEFAULT 0');
+        await addColumnIfMissing('recipes', 'yield_quantity', 'REAL');
+        await addColumnIfMissing('recipes', 'yield_unit', 'TEXT');
 
         console.log('Tables initialized');
     } catch (err) {

@@ -82,6 +82,12 @@ input, select, button {
   margin-left: 6px;
 }
 
+.based-product-hint {
+  font-size: 13px;
+  color: #6a1b9a;
+  margin: 8px 0;
+}
+
 /* ========================== */
 /* Tambah Bahan ke Resep - multi baris */
 /* ========================== */
