@@ -1076,6 +1076,7 @@ ingCancelBtn.addEventListener('click', cancelEditIngredient);
 // EDIT MODE: Recipe
 // ==========================
 function startEditRecipe(rec) {
+  switchTab('recipe'); // form-nya ada di tab Resep, bukan di tab Daftar Resep tempat tombol Edit diklik
   document.getElementById('recId').value = rec.id;
   document.getElementById('recName').value = rec.name;
   document.getElementById('recPrice').value = rec.selling_price;
