@@ -754,3 +754,67 @@ body.role-staff .admin-only-block {
 .toast-hide {
   opacity: 0;
 }
+
+/* ========================== */
+/* Food Inventory */
+/* ========================== */
+.inv-type-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.inv-type-btn {
+  background-color: #f4f6f8;
+  color: #333;
+  border: 2px solid transparent;
+  padding: 10px 8px;
+  border-radius: 6px;
+}
+
+.inv-type-btn:hover {
+  background-color: #e8f5e9;
+}
+
+.inv-type-btn.active {
+  background-color: #e8f5e9;
+  color: #1b5e20;
+  border-color: #2e7d32;
+}
+
+.inv-preview {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+}
+
+#invItemTable th.num, #invItemTable td.num,
+#invHistoryTable th.num, #invHistoryTable td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+#invHistoryTable td:first-child {
+  white-space: nowrap;
+}
+
+#invItemTable tfoot td {
+  font-weight: bold;
+  border-top: 2px solid #ddd;
+}
+
+.inv-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.inv-badge.in { background: #e8f5e9; color: #1b5e20; }
+.inv-badge.out { background: #fdecea; color: #b71c1c; }
+.inv-badge.opname { background: #e3f2fd; color: #0d47a1; }
+.inv-empty { color: #b71c1c; font-weight: bold; }
+.inv-diff-plus { color: #1b5e20; }
+.inv-diff-minus { color: #b71c1c; }

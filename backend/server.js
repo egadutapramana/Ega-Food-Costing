@@ -13,6 +13,7 @@ const supplierRoutes = require('./routes/suppliers');
 const reportRoutes = require('./routes/reports');
 const backupRoutes = require('./routes/backup');
 const categoryRoutes = require('./routes/categories');
+const inventoryRoutes = require('./routes/inventory');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +28,7 @@ app.use('/api/suppliers', requireAuth, supplierRoutes);
 app.use('/api/reports', requireAuth, reportRoutes);
 app.use('/api/backup', requireAuth, backupRoutes);
 app.use('/api/categories', requireAuth, categoryRoutes);
+app.use('/api/inventory', requireAuth, inventoryRoutes);
 
 app.get('/', (req, res) => {
     res.send('Food Cost API is running');

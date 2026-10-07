@@ -122,6 +122,26 @@ const SQLITE_SCHEMA = [
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
         is_based_product_category INTEGER NOT NULL DEFAULT 0
+    )`,
+    // Food Inventory: daftar item sendiri (terpisah dari bahan baku) + riwayat stok masuk/keluar/opname
+    `CREATE TABLE IF NOT EXISTS inventory_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        category TEXT,
+        unit TEXT NOT NULL,
+        price_per_unit REAL NOT NULL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS inventory_movements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        difference REAL,
+        note TEXT,
+        created_by TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (item_id) REFERENCES inventory_items(id) ON DELETE CASCADE
     )`
 ];
 
@@ -176,6 +196,24 @@ const PG_SCHEMA = [
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL UNIQUE,
         is_based_product_category INTEGER NOT NULL DEFAULT 0
+    )`,
+    `CREATE TABLE IF NOT EXISTS inventory_items (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        category TEXT,
+        unit TEXT NOT NULL,
+        price_per_unit REAL NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS inventory_movements (
+        id SERIAL PRIMARY KEY,
+        item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        quantity REAL NOT NULL,
+        difference REAL,
+        note TEXT,
+        created_by TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`
 ];
 

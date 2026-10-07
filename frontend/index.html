@@ -50,6 +50,7 @@
       <button type="button" class="tab-btn" data-tab="recipe">🍽️ Resep</button>
       <button type="button" class="tab-btn" data-tab="recipe-list">🧾 Daftar Resep</button>
       <button type="button" class="tab-btn" data-tab="menu">📋 Menu</button>
+      <button type="button" class="tab-btn" data-tab="inventory">📦 Food Inventory</button>
       <button type="button" class="tab-btn" id="userTabBtn" data-tab="user" style="display:none;">👤 User</button>
     </nav>
 
@@ -337,6 +338,111 @@
             <!-- Data akan diisi otomatis lewat JavaScript -->
           </tbody>
         </table>
+      </section>
+    </div>
+
+    <!-- Tab: Food Inventory (daftar item sendiri, stok dihitung dari riwayat masuk/keluar/opname) -->
+    <div class="tab-content" id="tab-inventory" style="display:none;">
+      <section class="card">
+        <h2>📦 Food Inventory</h2>
+        <div id="invSummary" class="dashboard-grid"></div>
+      </section>
+
+      <section class="card">
+        <h2>Catat Stok</h2>
+        <form id="invMoveForm">
+          <div class="inv-type-group" role="group" aria-label="Jenis transaksi">
+            <button type="button" class="inv-type-btn active" data-type="in">⬇️ Stok Masuk</button>
+            <button type="button" class="inv-type-btn" data-type="out">⬆️ Stok Keluar</button>
+            <button type="button" class="inv-type-btn" data-type="opname">📝 Stock Opname</button>
+          </div>
+          <select id="invMoveItem" required>
+            <option value="">Pilih Item</option>
+          </select>
+          <input type="number" id="invMoveQty" placeholder="Jumlah" min="0" step="any" required>
+          <input type="text" id="invMoveNote" placeholder="Catatan (opsional), misal: beli di pasar, dipakai untuk trip">
+          <p id="invMovePreview" class="inv-preview"></p>
+          <div class="form-actions">
+            <button type="submit" id="invMoveSubmitBtn">Simpan Stok Masuk</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2 id="invFormTitle">Tambah Item</h2>
+        <form id="invItemForm">
+          <input type="hidden" id="invItemId" value="">
+          <input type="text" id="invItemName" placeholder="Nama item" required>
+          <input type="text" id="invItemCategory" placeholder="Kategori (misal: Frozen, Dry Goods, Sayur)" list="invCategoryList">
+          <datalist id="invCategoryList"></datalist>
+          <input type="text" id="invItemUnit" placeholder="Satuan (kg, liter, pcs)" required>
+          <input type="number" id="invItemPrice" placeholder="Harga per satuan (untuk nilai stok)" min="0" step="0.01">
+          <input type="number" id="invItemOpening" placeholder="Stok awal (opsional)" min="0" step="any">
+          <div class="form-actions">
+            <button type="submit" id="invItemSubmitBtn">Tambah Item</button>
+            <button type="button" id="invItemCancelBtn" class="cancel-btn" style="display:none;">Batal Edit</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Daftar Stok</h2>
+        <div class="search-bar">
+          <input type="text" id="invSearchInput" placeholder="🔍 Cari nama item...">
+          <select id="invFilterCategory">
+            <option value="">Semua Kategori</option>
+          </select>
+        </div>
+        <div class="table-scroll">
+          <table id="invItemTable">
+            <thead>
+              <tr>
+                <th>Nama</th>
+                <th>Kategori</th>
+                <th class="num">Stok</th>
+                <th>Satuan</th>
+                <th class="num">Harga/Satuan</th>
+                <th class="num">Nilai Stok</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Riwayat Stok</h2>
+        <div class="search-bar">
+          <select id="invHistoryType">
+            <option value="">Semua Jenis</option>
+            <option value="in">Stok Masuk</option>
+            <option value="out">Stok Keluar</option>
+            <option value="opname">Stock Opname</option>
+          </select>
+          <select id="invHistoryItem">
+            <option value="">Semua Item</option>
+          </select>
+        </div>
+        <div class="table-scroll">
+          <table id="invHistoryTable">
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Item</th>
+                <th>Jenis</th>
+                <th class="num">Jumlah</th>
+                <th class="num">Selisih</th>
+                <th class="num">Stok Setelah</th>
+                <th>Catatan</th>
+                <th>Oleh</th>
+                <th class="admin-only-block"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </section>
     </div>
 

@@ -1782,6 +1782,296 @@ document.addEventListener('click', (e) => {
 });
 
 // ==========================
+// FOOD INVENTORY: daftar item sendiri, stok masuk/keluar, stock opname, nilai stok
+// ==========================
+const invSummaryEl = document.getElementById('invSummary');
+const invMoveForm = document.getElementById('invMoveForm');
+const invMoveItem = document.getElementById('invMoveItem');
+const invMoveQty = document.getElementById('invMoveQty');
+const invMoveNote = document.getElementById('invMoveNote');
+const invMovePreview = document.getElementById('invMovePreview');
+const invMoveSubmitBtn = document.getElementById('invMoveSubmitBtn');
+const invItemForm = document.getElementById('invItemForm');
+const invFormTitle = document.getElementById('invFormTitle');
+const invItemSubmitBtn = document.getElementById('invItemSubmitBtn');
+const invItemCancelBtn = document.getElementById('invItemCancelBtn');
+const invItemOpening = document.getElementById('invItemOpening');
+const invItemTableBody = document.querySelector('#invItemTable tbody');
+const invItemTableFoot = document.querySelector('#invItemTable tfoot');
+const invSearchInput = document.getElementById('invSearchInput');
+const invFilterCategory = document.getElementById('invFilterCategory');
+const invHistoryType = document.getElementById('invHistoryType');
+const invHistoryItem = document.getElementById('invHistoryItem');
+const invHistoryTableBody = document.querySelector('#invHistoryTable tbody');
+
+let invItemsCache = [];
+let invMoveType = 'in';
+const INV_TYPE_LABEL = { in: 'Stok Masuk', out: 'Stok Keluar', opname: 'Stock Opname' };
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+const fmtQty = (n) => Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 3 });
+const fmtRp = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
+// Waktu dari database disimpan dalam UTC; tampilkan dalam jam lokal
+function fmtInvTime(value) {
+  if (!value) return '-';
+  const s = String(value);
+  const d = new Date(/Z$|[+-]\d\d:?\d\d$/.test(s) ? s : s.replace(' ', 'T') + 'Z');
+  return isNaN(d) ? s : d.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+async function loadInventory() {
+  try {
+    const res = await apiFetch(`${API_URL}/inventory/items`);
+    const items = await res.json();
+    if (!res.ok) throw new Error(items.error || 'Gagal memuat inventory');
+    invItemsCache = items;
+    renderInventorySummary();
+    renderInventoryDropdowns();
+    applyInventoryFilter();
+    updateInvMovePreview();
+  } catch (err) {
+    console.error('Gagal memuat inventory:', err);
+  }
+  loadInventoryHistory();
+}
+
+function renderInventorySummary() {
+  const total = invItemsCache.reduce((sum, it) => sum + Number(it.value || 0), 0);
+  const empty = invItemsCache.filter((it) => Number(it.stock) <= 0).length;
+  const cats = new Set(invItemsCache.map((it) => it.category).filter(Boolean)).size;
+  invSummaryEl.innerHTML = `
+    <div class="stat-card"><div class="stat-value">${fmtRp(total)}</div><div class="stat-label">Total Nilai Stok</div></div>
+    <div class="stat-card"><div class="stat-value">${invItemsCache.length}</div><div class="stat-label">Total Item</div></div>
+    <div class="stat-card"><div class="stat-value">${cats}</div><div class="stat-label">Kategori</div></div>
+    <div class="stat-card"><div class="stat-value"${empty ? ' style="color:#b71c1c"' : ''}>${empty}</div><div class="stat-label">Stok Habis</div></div>
+  `;
+}
+
+function renderInventoryDropdowns() {
+  const options = invItemsCache.map((it) => `<option value="${it.id}">${escapeHtml(it.name)} (stok ${fmtQty(it.stock)} ${escapeHtml(it.unit)})</option>`).join('');
+  const keepMove = invMoveItem.value;
+  invMoveItem.innerHTML = '<option value="">Pilih Item</option>' + options;
+  if (invItemsCache.some((it) => String(it.id) === keepMove)) invMoveItem.value = keepMove;
+
+  const keepHist = invHistoryItem.value;
+  invHistoryItem.innerHTML = '<option value="">Semua Item</option>' + invItemsCache.map((it) => `<option value="${it.id}">${escapeHtml(it.name)}</option>`).join('');
+  if (invItemsCache.some((it) => String(it.id) === keepHist)) invHistoryItem.value = keepHist;
+
+  const cats = [...new Set(invItemsCache.map((it) => (it.category || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'id'));
+  const keepCat = invFilterCategory.value;
+  invFilterCategory.innerHTML = '<option value="">Semua Kategori</option>' + cats.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  if (cats.includes(keepCat)) invFilterCategory.value = keepCat;
+  document.getElementById('invCategoryList').innerHTML = cats.map((c) => `<option value="${escapeHtml(c)}"></option>`).join('');
+}
+
+function applyInventoryFilter() {
+  const term = invSearchInput.value.trim().toLowerCase();
+  const cat = invFilterCategory.value;
+  const rows = invItemsCache.filter((it) =>
+    (!term || it.name.toLowerCase().includes(term)) && (!cat || (it.category || '') === cat)
+  );
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  invItemTableBody.innerHTML = rows.map((it) => `
+    <tr>
+      <td>${escapeHtml(it.name)}</td>
+      <td>${escapeHtml(it.category || '-')}</td>
+      <td class="num${Number(it.stock) <= 0 ? ' inv-empty' : ''}">${fmtQty(it.stock)}</td>
+      <td>${escapeHtml(it.unit)}</td>
+      <td class="num">${fmtRp(it.price_per_unit)}</td>
+      <td class="num">${fmtRp(it.value)}</td>
+      <td>
+        <button type="button" class="edit-btn" data-inv-edit="${it.id}">✏️ Edit</button>
+        ${isAdmin ? `<button type="button" class="delete-btn" data-inv-delete="${it.id}">🗑️ Hapus</button>` : ''}
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7"><em>Belum ada item. Tambahkan lewat form "Tambah Item" di atas.</em></td></tr>';
+  const total = rows.reduce((sum, it) => sum + Number(it.value || 0), 0);
+  invItemTableFoot.innerHTML = rows.length
+    ? `<tr><td colspan="5">Total nilai stok${cat || term ? ' (sesuai filter)' : ''}</td><td class="num">${fmtRp(total)}</td><td></td></tr>`
+    : '';
+}
+
+async function loadInventoryHistory() {
+  try {
+    const params = new URLSearchParams({ limit: '200' });
+    if (invHistoryType.value) params.set('type', invHistoryType.value);
+    if (invHistoryItem.value) params.set('item_id', invHistoryItem.value);
+    const res = await apiFetch(`${API_URL}/inventory/movements?${params}`);
+    const rows = await res.json();
+    if (!res.ok) throw new Error(rows.error || 'Gagal memuat riwayat');
+    const isAdmin = currentUser && currentUser.role === 'admin';
+    invHistoryTableBody.innerHTML = rows.map((m) => {
+      const sign = m.type === 'in' ? '+' : m.type === 'out' ? '−' : '';
+      const diff = m.type === 'opname' && m.difference !== null && m.difference !== undefined
+        ? `<span class="${Number(m.difference) < 0 ? 'inv-diff-minus' : 'inv-diff-plus'}">${Number(m.difference) > 0 ? '+' : ''}${fmtQty(m.difference)}</span>`
+        : '-';
+      return `
+      <tr>
+        <td>${fmtInvTime(m.created_at)}</td>
+        <td>${escapeHtml(m.item_name)}</td>
+        <td><span class="inv-badge ${m.type}">${INV_TYPE_LABEL[m.type] || m.type}</span></td>
+        <td class="num">${sign}${fmtQty(m.quantity)} ${escapeHtml(m.item_unit)}</td>
+        <td class="num">${diff}</td>
+        <td class="num">${fmtQty(m.stock_after)}</td>
+        <td>${escapeHtml(m.note || '-')}</td>
+        <td>${escapeHtml(m.created_by || '-')}</td>
+        <td class="admin-only-block">${isAdmin ? `<button type="button" class="delete-btn" data-inv-move-delete="${m.id}" title="Hapus transaksi ini; stok dihitung ulang">🗑️</button>` : ''}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="9"><em>Belum ada riwayat stok.</em></td></tr>';
+  } catch (err) {
+    console.error('Gagal memuat riwayat inventory:', err);
+  }
+}
+
+function setInvMoveType(type) {
+  invMoveType = type;
+  document.querySelectorAll('.inv-type-btn').forEach((b) => b.classList.toggle('active', b.dataset.type === type));
+  invMoveQty.placeholder = type === 'opname' ? 'Hasil hitung fisik (stok sebenarnya)' : 'Jumlah';
+  invMoveSubmitBtn.textContent = `Simpan ${INV_TYPE_LABEL[type]}`;
+  updateInvMovePreview();
+}
+
+function updateInvMovePreview() {
+  const it = invItemsCache.find((x) => String(x.id) === invMoveItem.value);
+  if (!it) { invMovePreview.textContent = ''; return; }
+  const cur = Number(it.stock) || 0;
+  const qtyRaw = invMoveQty.value;
+  let text = `Stok sekarang: ${fmtQty(cur)} ${it.unit}`;
+  if (qtyRaw !== '' && !isNaN(Number(qtyRaw))) {
+    const q = Number(qtyRaw);
+    if (invMoveType === 'opname') {
+      const d = q - cur;
+      text += ` → hasil hitung ${fmtQty(q)} ${it.unit} (selisih ${d > 0 ? '+' : ''}${fmtQty(d)}, nilai ${fmtRp(d * Number(it.price_per_unit || 0))})`;
+    } else {
+      const after = invMoveType === 'in' ? cur + q : cur - q;
+      text += ` → setelah disimpan: ${fmtQty(after)} ${it.unit}`;
+      if (after < 0) text += ' ⚠️ stok tidak cukup';
+    }
+  }
+  invMovePreview.textContent = text;
+}
+
+document.querySelectorAll('.inv-type-btn').forEach((b) => b.addEventListener('click', () => setInvMoveType(b.dataset.type)));
+invMoveItem.addEventListener('change', updateInvMovePreview);
+invMoveQty.addEventListener('input', updateInvMovePreview);
+invSearchInput.addEventListener('input', debounce(applyInventoryFilter, 200));
+invFilterCategory.addEventListener('change', applyInventoryFilter);
+invHistoryType.addEventListener('change', loadInventoryHistory);
+invHistoryItem.addEventListener('change', loadInventoryHistory);
+
+invMoveForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const item = invItemsCache.find((x) => String(x.id) === invMoveItem.value);
+  try {
+    const res = await apiFetch(`${API_URL}/inventory/movements`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: invMoveItem.value, type: invMoveType, quantity: invMoveQty.value, note: invMoveNote.value })
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Gagal menyimpan');
+    const name = item ? item.name : 'Item';
+    showToast(invMoveType === 'opname'
+      ? `Stock opname ${name} disimpan (selisih ${result.difference > 0 ? '+' : ''}${fmtQty(result.difference)})`
+      : `${INV_TYPE_LABEL[invMoveType]} ${name} disimpan, stok sekarang ${fmtQty(result.stock)}`, 'success');
+    invMoveQty.value = '';
+    invMoveNote.value = '';
+    loadInventory();
+  } catch (err) {
+    showToast('Terjadi kesalahan: ' + err.message);
+  }
+});
+
+function resetInvItemForm() {
+  invItemForm.reset();
+  document.getElementById('invItemId').value = '';
+  invFormTitle.textContent = 'Tambah Item';
+  invItemSubmitBtn.textContent = 'Tambah Item';
+  invItemCancelBtn.style.display = 'none';
+  invItemOpening.style.display = '';
+}
+
+invItemCancelBtn.addEventListener('click', resetInvItemForm);
+
+invItemForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('invItemId').value;
+  const body = {
+    name: document.getElementById('invItemName').value,
+    category: document.getElementById('invItemCategory').value,
+    unit: document.getElementById('invItemUnit').value,
+    price_per_unit: document.getElementById('invItemPrice').value,
+    opening_stock: id ? undefined : invItemOpening.value
+  };
+  try {
+    const res = await apiFetch(`${API_URL}/inventory/items${id ? '/' + id : ''}`, {
+      method: id ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Gagal menyimpan item');
+    showToast(id ? 'Item diperbarui' : `Item "${body.name.trim()}" ditambahkan`, 'success');
+    resetInvItemForm();
+    loadInventory();
+  } catch (err) {
+    showToast('Terjadi kesalahan: ' + err.message);
+  }
+});
+
+document.addEventListener('click', async (e) => {
+  const edit = e.target.closest('[data-inv-edit]');
+  const del = e.target.closest('[data-inv-delete]');
+  const delMove = e.target.closest('[data-inv-move-delete]');
+
+  if (edit) {
+    const it = invItemsCache.find((x) => String(x.id) === edit.dataset.invEdit);
+    if (!it) return;
+    document.getElementById('invItemId').value = it.id;
+    document.getElementById('invItemName').value = it.name;
+    document.getElementById('invItemCategory').value = it.category || '';
+    document.getElementById('invItemUnit').value = it.unit;
+    document.getElementById('invItemPrice').value = it.price_per_unit;
+    invItemOpening.value = '';
+    invItemOpening.style.display = 'none'; // stok diubah lewat Catat Stok / Stock Opname
+    invFormTitle.textContent = `Edit Item: ${it.name}`;
+    invItemSubmitBtn.textContent = 'Update Item';
+    invItemCancelBtn.style.display = '';
+    invItemForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
+  if (del) {
+    const it = invItemsCache.find((x) => String(x.id) === del.dataset.invDelete);
+    if (!it || !confirm(`Hapus item "${it.name}" beserta seluruh riwayat stoknya?`)) return;
+    try {
+      const res = await apiFetch(`${API_URL}/inventory/items/${it.id}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal menghapus item');
+      showToast(`Item "${it.name}" dihapus`, 'success');
+      loadInventory();
+    } catch (err) {
+      showToast('Terjadi kesalahan: ' + err.message);
+    }
+    return;
+  }
+
+  if (delMove) {
+    if (!confirm('Hapus transaksi ini? Stok item akan dihitung ulang.')) return;
+    try {
+      const res = await apiFetch(`${API_URL}/inventory/movements/${delMove.dataset.invMoveDelete}`, { method: 'DELETE' });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Gagal menghapus transaksi');
+      showToast('Transaksi dihapus, stok dihitung ulang', 'success');
+      loadInventory();
+    } catch (err) {
+      showToast('Terjadi kesalahan: ' + err.message);
+    }
+  }
+});
+
+// ==========================
 // INISIALISASI: Jalankan saat halaman dimuat
 // ==========================
 async function startApp() {
@@ -1800,7 +2090,8 @@ async function startApp() {
     loadRecipeDropdown(),
     loadMenuList(),
     loadDashboard(),
-    loadUsers()
+    loadUsers(),
+    loadInventory()
   ]);
 }
 

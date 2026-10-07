@@ -23,7 +23,9 @@ const EXPORT_TABLES = [
     'ingredients',
     'ingredient_price_history',
     'recipes',
-    'recipe_ingredients'
+    'recipe_ingredients',
+    'inventory_items',
+    'inventory_movements'
 ];
 
 // GET export seluruh data bisnis (bukan akun user) sebagai satu file JSON yang bisa diunduh.
