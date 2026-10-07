@@ -4,6 +4,7 @@ const db = require('../database/db');
 const { isNonEmptyString, isValidPrice, isPositiveNumber } = require('../utils/validate');
 const { requireAdmin } = require('../middleware/auth');
 const { resolveIngredientRow, resolveIngredientRows } = require('../utils/ingredientCost');
+const { syncIngredientToInventory } = require('../utils/inventorySync');
 
 function dbGet(sql, params = []) {
     return new Promise((resolve, reject) => {
@@ -146,8 +147,9 @@ router.post('/', async (req, res) => {
             db.run('INSERT INTO ingredient_price_history (ingredient_id, price_per_unit) VALUES (?, ?)', [ingredientId, finalPrice]);
         }
 
-        const created = await dbGet('SELECT * FROM ingredients WHERE id = ?', [ingredientId]);
-        res.json(await resolveIngredientRow(created));
+        const created = await resolveIngredientRow(await dbGet('SELECT * FROM ingredients WHERE id = ?', [ingredientId]));
+        await syncIngredientToInventory(created); // bahan baru otomatis muncul di Food Inventory
+        res.json(created);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -177,7 +179,7 @@ router.put('/:id', async (req, res) => {
         const existingName = await dbGet('SELECT id FROM ingredients WHERE LOWER(name) = LOWER(?) AND id != ?', [name, ingredientId]);
         if (existingName) return res.status(400).json({ error: 'Bahan dengan nama ini sudah ada' });
 
-        const current = await dbGet('SELECT price_per_unit FROM ingredients WHERE id = ?', [ingredientId]);
+        const current = await dbGet('SELECT name, price_per_unit FROM ingredients WHERE id = ?', [ingredientId]);
         if (!current) return res.status(404).json({ error: 'Bahan tidak ditemukan' });
 
         const finalPrice = isBasedProduct ? 0 : price_per_unit;
@@ -193,8 +195,9 @@ router.put('/:id', async (req, res) => {
             db.run('INSERT INTO ingredient_price_history (ingredient_id, price_per_unit) VALUES (?, ?)', [ingredientId, finalPrice]);
         }
 
-        const updated = await dbGet('SELECT * FROM ingredients WHERE id = ?', [ingredientId]);
-        res.json(await resolveIngredientRow(updated));
+        const updated = await resolveIngredientRow(await dbGet('SELECT * FROM ingredients WHERE id = ?', [ingredientId]));
+        await syncIngredientToInventory(updated, current.name); // perubahan ikut ke Food Inventory
+        res.json(updated);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
