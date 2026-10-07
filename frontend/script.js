@@ -2016,6 +2016,22 @@ function resetInvItemForm() {
 
 invItemCancelBtn.addEventListener('click', resetInvItemForm);
 
+document.getElementById('invImportBtn').addEventListener('click', async (e) => {
+  if (!confirm('Salin semua bahan baku ke Food Inventory?\nNama, kategori, satuan & harga ikut disalin, stok mulai dari 0. Bahan yang namanya sudah ada di inventory dilewati.')) return;
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    const res = await apiFetch(`${API_URL}/inventory/items/import-from-ingredients`, { method: 'POST' });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Gagal menyalin bahan baku');
+    showToast(`${result.added} bahan baku disalin ke inventory` + (result.skipped ? ` (${result.skipped} dilewati karena sudah ada)` : ''), 'success');
+    loadInventory();
+  } catch (err) {
+    showToast('Terjadi kesalahan: ' + err.message);
+  }
+  btn.disabled = false;
+});
+
 invItemForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const id = document.getElementById('invItemId').value;

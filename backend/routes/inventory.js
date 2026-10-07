@@ -114,6 +114,27 @@ router.post('/items', async (req, res) => {
     }
 });
 
+// POST salin semua bahan baku ke daftar inventory (admin only).
+// Nama, kategori, satuan & harga ikut disalin, stok mulai dari 0; nama yang sudah ada di inventory dilewati.
+router.post('/items/import-from-ingredients', requireAdmin, async (req, res) => {
+    try {
+        const before = await getAsync('SELECT COUNT(*) AS count FROM inventory_items', []);
+        await runAsync(
+            `INSERT INTO inventory_items (name, category, unit, price_per_unit)
+             SELECT i.name, i.category, i.unit, i.price_per_unit FROM ingredients i
+             WHERE i.id IN (SELECT MIN(id) FROM ingredients GROUP BY LOWER(name))
+               AND NOT EXISTS (SELECT 1 FROM inventory_items x WHERE LOWER(x.name) = LOWER(i.name))`,
+            []
+        );
+        const after = await getAsync('SELECT COUNT(*) AS count FROM inventory_items', []);
+        const total = await getAsync('SELECT COUNT(*) AS count FROM ingredients', []);
+        const added = Number(after.count) - Number(before.count);
+        res.json({ added, skipped: Number(total.count) - added });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // PUT update item (nama, kategori, satuan, harga) — stok diubah lewat movement, bukan di sini
 router.put('/items/:id', async (req, res) => {
     const data = readItemBody(req.body);

@@ -374,7 +374,10 @@
       </section>
 
       <section class="card">
-        <h2 id="invFormTitle">Tambah Item</h2>
+        <div class="card-head">
+          <h2 id="invFormTitle">Tambah Item</h2>
+          <button type="button" id="invImportBtn" class="collapse-btn admin-only-block" title="Salin semua bahan baku (nama, kategori, satuan, harga) ke daftar inventory">📋 Salin dari Bahan Baku</button>
+        </div>
         <form id="invItemForm">
           <input type="hidden" id="invItemId" value="">
           <input type="text" id="invItemName" placeholder="Nama item" required>
