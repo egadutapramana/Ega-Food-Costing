@@ -522,7 +522,7 @@ function renderSupplierTable(suppliers) {
 
 function populateSupplierDropdowns(suppliers) {
   const keepIngValue = ingSupplierSelect.value;
-  ingSupplierSelect.innerHTML = '<option value="">Pilih Supplier</option>';
+  ingSupplierSelect.innerHTML = '<option value="">Pilih Supplier (opsional, bisa diisi nanti lewat Edit)</option>';
   suppliers.forEach(sup => {
     const option = document.createElement('option');
     option.value = sup.id;
@@ -733,7 +733,7 @@ function toggleBasedProductFields(isBasedProduct) {
   ingYieldQuantityInput.style.display = isBasedProduct ? '' : 'none';
   ingSourceRecipeSelect.required = isBasedProduct;
   ingYieldQuantityInput.required = isBasedProduct;
-  ingSupplierSelect.required = !isBasedProduct;
+  ingSupplierSelect.required = false; // supplier boleh dikosongkan dulu, diisi nanti lewat Edit
 
   if (isBasedProduct) {
     ingPriceInput.value = '';
