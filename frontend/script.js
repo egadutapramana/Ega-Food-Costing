@@ -653,7 +653,9 @@ async function loadIngredients() {
       row.innerHTML = `
         <td>${ing.name}${basedProductBadge}</td>
         <td>${ing.unit}</td>
-        <td>Rp${Number(ing.price_per_unit).toLocaleString('id-ID')}</td>
+        <td>${!ing.source_recipe_id && !(Number(ing.price_per_unit) > 0)
+          ? '<span class="no-price-badge">Belum ada harga</span>'
+          : `Rp${Number(ing.price_per_unit).toLocaleString('id-ID')}`}</td>
         <td>${ing.category || '-'}</td>
         <td>${supplierName}</td>
         <td>
@@ -739,9 +741,9 @@ function toggleBasedProductFields(isBasedProduct) {
     ingPriceInput.disabled = true;
     ingPriceInput.placeholder = 'Otomatis dihitung dari resep sumber';
   } else {
-    ingPriceInput.required = true;
+    ingPriceInput.required = false; // harga boleh dikosongkan dulu, diisi nanti lewat Edit
     ingPriceInput.disabled = false;
-    ingPriceInput.placeholder = 'Harga per satuan';
+    ingPriceInput.placeholder = 'Harga per satuan (opsional, bisa diisi nanti lewat Edit)';
   }
 }
 
@@ -1080,7 +1082,8 @@ function startEditIngredient(ing) {
     ingSourceRecipeSelect.value = ing.source_recipe_id;
     ingYieldQuantityInput.value = ing.yield_quantity;
   } else {
-    document.getElementById('ingPrice').value = ing.price_per_unit;
+    // harga 0 = belum diisi: biarkan kosong supaya placeholder terlihat
+    document.getElementById('ingPrice').value = Number(ing.price_per_unit) > 0 ? ing.price_per_unit : '';
   }
 
   expandCollapse('ingredientForm'); // form harus terlihat saat mengedit
@@ -1197,7 +1200,7 @@ ingredientForm.addEventListener('submit', async (e) => {
       showToast('Jumlah hasil (yield) harus berupa angka lebih dari 0');
       return;
     }
-  } else if (price_per_unit === '' || isNaN(Number(price_per_unit)) || Number(price_per_unit) < 0) {
+  } else if (price_per_unit !== '' && (isNaN(Number(price_per_unit)) || Number(price_per_unit) < 0)) {
     showToast('Harga per satuan harus berupa angka dan tidak boleh negatif');
     return;
   }

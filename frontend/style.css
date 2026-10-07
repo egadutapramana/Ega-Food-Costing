@@ -897,3 +897,14 @@ body.role-staff .admin-only-block {
 .card-head + form {
   margin-top: 12px;
 }
+
+.no-price-badge {
+  display: inline-block;
+  background: #fff3e0;
+  color: #a84300;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}

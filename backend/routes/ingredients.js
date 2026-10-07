@@ -100,6 +100,9 @@ router.get('/:id/price-history', (req, res) => {
     );
 });
 
+// Harga boleh dikosongkan dulu (diisi nanti lewat Edit); disimpan sebagai 0
+const isPriceEmpty = (value) => value === '' || value === null || value === undefined;
+
 function validateIngredientInput(body) {
     const name = (body.name || '').trim();
     const unit = (body.unit || '').trim();
@@ -110,7 +113,7 @@ function validateIngredientInput(body) {
 
     if (isBasedProduct) {
         if (!isPositiveNumber(body.yield_quantity)) return 'Jumlah hasil (yield) harus berupa angka lebih dari 0';
-    } else if (!isValidPrice(body.price_per_unit)) {
+    } else if (!isPriceEmpty(body.price_per_unit) && !isValidPrice(body.price_per_unit)) {
         return 'Harga per satuan harus berupa angka dan tidak boleh negatif';
     }
     return null;
@@ -136,14 +139,14 @@ router.post('/', async (req, res) => {
         const existing = await dbGet('SELECT id FROM ingredients WHERE LOWER(name) = LOWER(?)', [name]);
         if (existing) return res.status(400).json({ error: 'Bahan dengan nama ini sudah ada' });
 
-        const finalPrice = isBasedProduct ? 0 : price_per_unit;
+        const finalPrice = isBasedProduct || isPriceEmpty(price_per_unit) ? 0 : price_per_unit;
         const result = await dbRun(
             'INSERT INTO ingredients (name, unit, price_per_unit, supplier_id, category, source_recipe_id, yield_quantity) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [name, unit, finalPrice, supplier_id || null, category, isBasedProduct ? source_recipe_id : null, isBasedProduct ? yield_quantity : null]
         );
 
         const ingredientId = result.lastID;
-        if (!isBasedProduct) {
+        if (!isBasedProduct && !isPriceEmpty(price_per_unit)) {
             db.run('INSERT INTO ingredient_price_history (ingredient_id, price_per_unit) VALUES (?, ?)', [ingredientId, finalPrice]);
         }
 
@@ -182,7 +185,7 @@ router.put('/:id', async (req, res) => {
         const current = await dbGet('SELECT name, price_per_unit FROM ingredients WHERE id = ?', [ingredientId]);
         if (!current) return res.status(404).json({ error: 'Bahan tidak ditemukan' });
 
-        const finalPrice = isBasedProduct ? 0 : price_per_unit;
+        const finalPrice = isBasedProduct || isPriceEmpty(price_per_unit) ? 0 : price_per_unit;
         const priceChanged = !isBasedProduct && Number(current.price_per_unit) !== Number(finalPrice);
 
         const result = await dbRun(
