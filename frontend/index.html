@@ -126,7 +126,10 @@
     <!-- Tab: Bahan Baku -->
     <div class="tab-content" id="tab-ingredient" style="display:none;">
       <section class="card">
-        <h2 id="ingFormTitle">Tambah Bahan Baku</h2>
+        <div class="card-head">
+          <h2 id="ingFormTitle">Tambah Bahan Baku</h2>
+          <button type="button" class="collapse-btn" data-collapse="ingredientForm" aria-expanded="true" aria-controls="ingredientForm">▾ Tutup</button>
+        </div>
         <form id="ingredientForm">
           <input type="hidden" id="ingId" value="">
           <input type="text" id="ingName" placeholder="Nama bahan" required>
@@ -158,7 +161,11 @@
       </section>
 
       <section class="card admin-only-block" id="ingCategoryManagerSection">
-        <h2>🏷️ Kelola Kategori Bahan</h2>
+        <div class="card-head">
+          <h2>🏷️ Kelola Kategori Bahan</h2>
+          <button type="button" class="collapse-btn" data-collapse="ingCategoryBody" aria-expanded="true" aria-controls="ingCategoryBody">▾ Tutup</button>
+        </div>
+        <div id="ingCategoryBody">
         <table id="ingCategoryTable">
           <tbody></tbody>
         </table>
@@ -166,6 +173,7 @@
           <input type="text" id="newIngCategoryName" placeholder="Nama kategori baru" required>
           <button type="submit">Tambah Kategori</button>
         </form>
+        </div>
       </section>
 
       <section class="card">

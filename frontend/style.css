@@ -893,6 +893,7 @@ body.role-staff .admin-only-block {
   background-color: #c8e6c9;
 }
 
-.card-head + div {
+.card-head + div,
+.card-head + form {
   margin-top: 12px;
 }

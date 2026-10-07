@@ -240,6 +240,12 @@ function setCollapsed(btn, collapsed) {
   btn.setAttribute('aria-expanded', String(!collapsed));
 }
 
+// Buka bagian yang sedang ditutup (misal form saat tombol Edit diklik)
+function expandCollapse(bodyId) {
+  const btn = document.querySelector(`[data-collapse="${bodyId}"]`);
+  if (btn && btn.getAttribute('aria-expanded') === 'false') btn.click();
+}
+
 document.querySelectorAll('[data-collapse]').forEach((btn) => {
   let saved = null;
   try { saved = localStorage.getItem('collapse:' + btn.dataset.collapse); } catch (e) {}
@@ -1077,6 +1083,7 @@ function startEditIngredient(ing) {
     document.getElementById('ingPrice').value = ing.price_per_unit;
   }
 
+  expandCollapse('ingredientForm'); // form harus terlihat saat mengedit
   ingFormTitle.textContent = 'Edit Bahan Baku';
   ingSubmitBtn.textContent = 'Update Bahan';
   ingCancelBtn.style.display = 'inline-block';
