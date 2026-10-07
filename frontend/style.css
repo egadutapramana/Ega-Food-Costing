@@ -820,28 +820,37 @@ body.role-staff .admin-only-block {
 .inv-diff-minus { color: #b71c1c; }
 
 /* ========================== */
-/* Tabel Bahan Baku versi ringkas: baris lebih pendek supaya lebih banyak item terlihat sekaligus */
+/* Tabel versi ringkas (Bahan Baku, Daftar Stok & Riwayat Stok): baris lebih pendek supaya lebih banyak item terlihat sekaligus */
 /* ========================== */
-#ingredientTable {
+#ingredientTable,
+#invItemTable,
+#invHistoryTable {
   font-size: 13px;
 }
 
-#ingredientTable th,
-#ingredientTable td {
+#ingredientTable th, #ingredientTable td,
+#invItemTable th, #invItemTable td,
+#invHistoryTable th, #invHistoryTable td {
   padding: 5px 8px;
   line-height: 1.3;
 }
 
 #ingredientTable td:nth-child(2),
-#ingredientTable td:nth-child(3) {
+#ingredientTable td:nth-child(3),
+#invItemTable td:nth-child(2),
+#invItemTable td:nth-child(4) {
   white-space: nowrap;
 }
 
-#ingredientTable td:last-child {
+#ingredientTable td:last-child,
+#invItemTable td:last-child,
+#invHistoryTable td:last-child {
   white-space: nowrap;
 }
 
-#ingredientTable td:last-child button {
+#ingredientTable td:last-child button,
+#invItemTable td:last-child button,
+#invHistoryTable td:last-child button {
   padding: 3px 7px;
   font-size: 12px;
   border-radius: 4px;
@@ -849,6 +858,11 @@ body.role-staff .admin-only-block {
 
 #ingredientTable .based-product-badge {
   font-size: 10px;
+}
+
+#invHistoryTable .inv-badge {
+  font-size: 11px;
+  padding: 1px 7px;
 }
 
 /* ========================== */
