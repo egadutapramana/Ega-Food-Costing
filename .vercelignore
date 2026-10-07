@@ -1,0 +1,6 @@
+node_modules
+backend/node_modules
+backend/.env
+backend/database/foodcost.db
+backend/database/backups
+.claude

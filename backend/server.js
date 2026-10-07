@@ -34,8 +34,14 @@ app.get('/', (req, res) => {
     res.send('Food Cost API is running');
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
-    startBackupScheduler();
-});
+// Dijalankan langsung (lokal / Railway): buka port sendiri + backup otomatis.
+// Di Vercel, file ini di-require oleh api/index.js sebagai serverless function, jadi tidak listen.
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server running at http://localhost:${PORT}`);
+        startBackupScheduler();
+    });
+}
+
+module.exports = app;
 

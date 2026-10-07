@@ -254,17 +254,21 @@ if (isPg) {
     const { createPgAdapter } = require('./pg-adapter');
     db = createPgAdapter(DATABASE_URL);
     console.log('Connected to PostgreSQL database');
-    initTables();
+    db.ready = initTables();
 } else {
     const sqlite3 = require('sqlite3').verbose();
+    let markReady;
+    const ready = new Promise((resolve) => { markReady = resolve; });
     db = new sqlite3.Database(path.join(__dirname, 'foodcost.db'), (err) => {
         if (err) {
             console.error('Error opening database', err);
+            markReady();
         } else {
             console.log('Connected to SQLite database');
-            initTables();
+            initTables().then(markReady);
         }
     });
+    db.ready = ready;
 }
 
 module.exports = db;
