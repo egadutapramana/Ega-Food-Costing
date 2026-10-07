@@ -818,3 +818,35 @@ body.role-staff .admin-only-block {
 .inv-empty { color: #b71c1c; font-weight: bold; }
 .inv-diff-plus { color: #1b5e20; }
 .inv-diff-minus { color: #b71c1c; }
+
+/* ========================== */
+/* Tabel Bahan Baku versi ringkas: baris lebih pendek supaya lebih banyak item terlihat sekaligus */
+/* ========================== */
+#ingredientTable {
+  font-size: 13px;
+}
+
+#ingredientTable th,
+#ingredientTable td {
+  padding: 5px 8px;
+  line-height: 1.3;
+}
+
+#ingredientTable td:nth-child(2),
+#ingredientTable td:nth-child(3) {
+  white-space: nowrap;
+}
+
+#ingredientTable td:last-child {
+  white-space: nowrap;
+}
+
+#ingredientTable td:last-child button {
+  padding: 3px 7px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+#ingredientTable .based-product-badge {
+  font-size: 10px;
+}

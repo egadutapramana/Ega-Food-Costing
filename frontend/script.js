@@ -165,7 +165,7 @@ let ingSearchTerm = '';
 let ingFilterSupplierId = '';
 let ingFilterCategoryValue = '';
 let ingCurrentPage = 1;
-const ingLimit = 10;
+const ingLimit = 25;
 
 let recSearchTerm = '';
 let recFilterCategoryValue = '';
