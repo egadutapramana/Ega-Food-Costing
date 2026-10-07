@@ -169,7 +169,11 @@
       </section>
 
       <section class="card">
-        <h2>Daftar Bahan Baku</h2>
+        <div class="card-head">
+          <h2>Daftar Bahan Baku</h2>
+          <button type="button" class="collapse-btn" data-collapse="ingListBody" aria-expanded="true" aria-controls="ingListBody">▾ Tutup</button>
+        </div>
+        <div id="ingListBody">
         <div class="search-bar">
           <input type="text" id="ingSearchInput" placeholder="🔍 Cari nama bahan...">
           <select id="ingFilterSupplier">
@@ -195,6 +199,7 @@
           </tbody>
         </table>
         <div id="ingPagination" class="pagination"></div>
+        </div>
       </section>
     </div>
 

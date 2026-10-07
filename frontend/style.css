@@ -850,3 +850,35 @@ body.role-staff .admin-only-block {
 #ingredientTable .based-product-badge {
   font-size: 10px;
 }
+
+/* ========================== */
+/* Tombol buka/tutup di judul card */
+/* ========================== */
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card-head h2 {
+  margin-bottom: 0;
+}
+
+.collapse-btn {
+  background-color: #e8f5e9;
+  color: #1b5e20;
+  border: 1px solid #2e7d32;
+  padding: 5px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.collapse-btn:hover {
+  background-color: #c8e6c9;
+}
+
+.card-head + div {
+  margin-top: 12px;
+}

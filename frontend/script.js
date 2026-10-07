@@ -230,6 +230,28 @@ document.querySelectorAll('.tab-btn').forEach((btn) => {
 });
 
 // ==========================
+// HELPER: Tombol Buka/Tutup di judul card (data-collapse="<id isi>"), posisinya diingat di browser
+// ==========================
+function setCollapsed(btn, collapsed) {
+  const body = document.getElementById(btn.dataset.collapse);
+  if (!body) return;
+  body.style.display = collapsed ? 'none' : '';
+  btn.textContent = collapsed ? '▸ Buka' : '▾ Tutup';
+  btn.setAttribute('aria-expanded', String(!collapsed));
+}
+
+document.querySelectorAll('[data-collapse]').forEach((btn) => {
+  let saved = null;
+  try { saved = localStorage.getItem('collapse:' + btn.dataset.collapse); } catch (e) {}
+  setCollapsed(btn, saved === '1');
+  btn.addEventListener('click', () => {
+    const collapsed = btn.getAttribute('aria-expanded') === 'true';
+    setCollapsed(btn, collapsed);
+    try { localStorage.setItem('collapse:' + btn.dataset.collapse, collapsed ? '1' : '0'); } catch (e) {}
+  });
+});
+
+// ==========================
 // HELPER: Modal (dipakai untuk riwayat harga bahan)
 // ==========================
 function openModal(title, bodyHtml) {
